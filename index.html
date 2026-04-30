@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Game World — Watch AI Learn to Play</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .week-banner {
+      background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto 1rem;
+      margin-left: 2rem;
+      margin-right: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .week-banner h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 0.3rem; }
+    .week-banner p { font-size: 0.85rem; color: var(--text-dim); }
+
+    .coming-soon {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .game-card-thumb.snake-thumb { background: linear-gradient(135deg, #0a0a2e, #1a0a3e); }
+    .game-card-thumb.c4-thumb { background: linear-gradient(135deg, #1a0a0e, #2a1a0e); }
+    .game-card-thumb.soon-thumb { background: var(--bg2); }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      padding: 0 2rem;
+      max-width: 1200px;
+      margin: 0 auto 0.5rem;
+    }
+
+    .countdown {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent3);
+    }
+    .countdown-label { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+    .stat-bar {
+      display: flex; gap: 2rem;
+      padding: 1rem 2rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .stat-item { display: flex; flex-direction: column; }
+    .stat-item span:first-child { color: var(--text-dim); font-size: 0.75rem; }
+    .stat-item span:last-child { font-weight: 700; color: var(--accent3); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">🤖 AI Game World</span>
+  <div class="nav-links">
+    <a href="index.html" class="active">Home</a>
+    <a href="games/snake/index.html">Snake</a>
+    <a href="games/connect4/index.html">Connect 4</a>
+    <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<!-- Stats bar -->
+<div class="stat-bar">
+  <div class="stat-item"><span>Games Live</span><span>2</span></div>
+  <div class="stat-item"><span>AI Models</span><span>2</span></div>
+  <div class="stat-item"><span>Next game drops in</span><span id="countdown">—</span></div>
+  <div class="stat-item"><span>Open Source</span><span>✅ GitHub</span></div>
+</div>
+
+<div class="hero">
+  <h1>AI Game World</h1>
+  <p>Watch neural networks evolve and learn to play games — in real time, in your browser. Train your own AIs, race them against each other, and watch intelligence emerge from scratch.</p>
+</div>
+
+<!-- Current week banner -->
+<div class="week-banner">
+  <div>
+    <h3>🗓 This Week's Game</h3>
+    <p>Snake — A neural network learns to survive and grow using a genetic algorithm with 100 agents per population.</p>
+  </div>
+  <div style="text-align:right">
+    <div class="countdown" id="weekCountdown">—</div>
+    <div class="countdown-label">until next game</div>
+  </div>
+</div>
+
+<!-- Games -->
+<p class="section-title">🎮 Games</p>
+<div class="games-grid">
+
+  <div class="game-card" onclick="location.href='games/snake/index.html'">
+    <div class="game-card-thumb snake-thumb">🐍</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Snake</div>
+      <div class="game-card-meta">
+        <span class="badge badge-week">This Week</span>
+        <span class="badge badge-classic">Classic</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">
+        Neural network learns to eat food and grow — trained with a genetic algorithm. Watch 100 agents evolve in real time.
+      </p>
+      <a href="games/snake/index.html" class="btn btn-primary">▶ Watch AI Play</a>
+    </div>
+  </div>
+
+  <div class="game-card" onclick="location.href='games/connect4/index.html'">
+    <div class="game-card-thumb c4-thumb">🔴</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Connect 4</div>
+      <div class="game-card-meta">
+        <span class="badge badge-new">Live</span>
+        <span class="badge badge-classic">Classic</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">
+        Neural AI trains against Minimax opponents. Watch it learn strategy — or challenge it yourself.
+      </p>
+      <a href="games/connect4/index.html" class="btn btn-primary">▶ Watch AI Play</a>
+    </div>
+  </div>
+
+  <div class="game-card coming-soon">
+    <div class="game-card-thumb soon-thumb">🏓</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Pong</div>
+      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Two AI agents train against each other — winner stays.</p>
+      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+    </div>
+  </div>
+
+  <div class="game-card coming-soon">
+    <div class="game-card-thumb soon-thumb">🚗</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Car Racing</div>
+      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Self-driving cars on a procedurally generated track. NEAT evolution.</p>
+      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+    </div>
+  </div>
+
+  <div class="game-card coming-soon">
+    <div class="game-card-thumb soon-thumb">🧩</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Tetris</div>
+      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">AI learns to survive the endless cascade of blocks.</p>
+      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+    </div>
+  </div>
+
+  <div class="game-card coming-soon">
+    <div class="game-card-thumb soon-thumb">⬛</div>
+    <div class="game-card-body">
+      <div class="game-card-title">Your Game</div>
+      <div class="game-card-meta"><span class="badge badge-new">Open Source</span></div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Have an idea? Submit a game to the repository.</p>
+      <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank" class="btn btn-ghost" style="pointer-events:all;opacity:1">🔗 GitHub</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- About section -->
+<div style="max-width:1200px;margin:2rem auto;padding:0 2rem">
+  <div class="panel-card" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:2rem">
+    <h2 style="margin-bottom:1rem">🧠 How it works</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem">
+      <div>
+        <div style="font-size:2rem;margin-bottom:0.5rem">🧬</div>
+        <strong>Genetic Algorithm</strong>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Each generation, the best-performing agents survive and reproduce. Mutation and crossover create the next generation.</p>
+      </div>
+      <div>
+        <div style="font-size:2rem;margin-bottom:0.5rem">🕸</div>
+        <strong>Neural Networks</strong>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Each AI agent has a small neural network as its brain. No gradient descent — just evolution selecting for fitness.</p>
+      </div>
+      <div>
+        <div style="font-size:2rem;margin-bottom:0.5rem">👁</div>
+        <strong>Watch in Real Time</strong>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">All training runs in your browser. No server, no waiting — pure JavaScript. Watch agents improve generation by generation.</p>
+      </div>
+      <div>
+        <div style="font-size:2rem;margin-bottom:0.5rem">➕</div>
+        <strong>Train Your Own</strong>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Spawn your own AI agent, adjust population size and mutation rate, and watch it learn independently.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>AI Game World — Open source. Built with vanilla JS + neural nets.<br>
+  <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">⭐ Star on GitHub</a></p>
+</footer>
+
+<script>
+// Countdown to next Monday midnight (new game every Monday)
+function updateCountdown() {
+  const now = new Date();
+  const next = new Date(now);
+  const day = next.getDay();
+  const daysUntilMonday = (8 - day) % 7 || 7;
+  next.setDate(next.getDate() + daysUntilMonday);
+  next.setHours(0, 0, 0, 0);
+
+  const diff = next - now;
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+
+  const str = `${d}d ${h}h ${m}m ${s}s`;
+  document.getElementById('countdown').textContent = str;
+  document.getElementById('weekCountdown').textContent = str;
+}
+
+setInterval(updateCountdown, 1000);
+updateCountdown();
+</script>
+</body>
+</html>
