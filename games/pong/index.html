@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pong — AI Game World</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    body { background: #05050f; }
+
+    .pong-page {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+    }
+    @media (max-width: 860px) { .pong-page { grid-template-columns: 1fr; } }
+
+    .game-area {
+      background: #0a0a1a;
+      border: 1px solid #2a0a4a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 0 40px rgba(180,0,255,0.08);
+    }
+
+    h2 { font-family: 'Share Tech Mono', monospace; letter-spacing: 0.1em; }
+
+    .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .mode-tab {
+      padding: 0.4rem 1rem; border-radius: 6px;
+      border: 1px solid #2a0a4a;
+      cursor: pointer; font-size: 0.82rem;
+      background: transparent; color: #888;
+      font-family: 'Share Tech Mono', monospace;
+      transition: all 0.2s;
+    }
+    .mode-tab.active-left  { background: #ff2d78; border-color: #ff2d78; color: white; }
+    .mode-tab.active-right { background: #00f5ff; border-color: #00f5ff; color: #000; }
+    .mode-tab.active-ai    { background: #b400ff; border-color: #b400ff; color: white; }
+
+    .canvas-wrapper {
+      display: flex; justify-content: center;
+      background: #05050f;
+      border-radius: 8px;
+      border: 1px solid #1a0a2a;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .versus-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+    }
+    .left-label  { color: #ff2d78; }
+    .right-label { color: #00f5ff; }
+    .vs-badge {
+      background: #1a0a2a; border: 1px solid #3a0a5a;
+      padding: 2px 12px; border-radius: 20px;
+      font-size: 0.75rem; color: #888;
+    }
+
+    .panel-card {
+      background: #0d0d20;
+      border: 1px solid #2a0a4a;
+      border-radius: 12px;
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .panel-card h3 {
+      font-size: 0.8rem; font-weight: 700;
+      color: #888; text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 1rem;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .stat-row {
+      display: flex; justify-content: space-between;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #1a0a2a;
+      font-size: 0.82rem; font-family: 'Share Tech Mono', monospace;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #666; }
+    .stat-left  { color: #ff2d78; font-weight: 700; }
+    .stat-right { color: #00f5ff; font-weight: 700; }
+    .stat-white { color: #fff; font-weight: 700; }
+
+    .chart-canvas { width: 100%; height: 110px; }
+
+    .speed-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.82rem; color: #666;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    input[type=range] { flex: 1; accent-color: #b400ff; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 1rem; border-radius: 6px;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      border: none; transition: all 0.2s;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .btn-purple { background: #b400ff; color: white; }
+    .btn-purple:hover { background: #9900dd; }
+    .btn-ghost { background: transparent; color: #888; border: 1px solid #2a0a4a; }
+    .btn-ghost:hover { border-color: #b400ff; color: #b400ff; }
+
+    .controls { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+    .key-hint {
+      font-size: 0.75rem; color: #444;
+      font-family: 'Share Tech Mono', monospace;
+      margin-top: 0.5rem; text-align: center;
+    }
+
+    .win-bar {
+      display: flex; height: 6px; border-radius: 3px;
+      overflow: hidden; margin-top: 0.5rem;
+      background: #1a0a2a;
+    }
+    #winBarLeft  { background: #ff2d78; transition: width 0.5s; }
+    #winBarRight { background: #00f5ff; transition: width 0.5s; }
+
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: #0d0d20; border: 1px solid #b400ff;
+      border-radius: 10px; padding: 0.8rem 1.2rem;
+      font-size: 0.85rem; z-index: 2000;
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.3s; font-family: 'Share Tech Mono', monospace;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    #humanControls { display: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">🤖 AI Game World</span>
+  <div class="nav-links">
+    <a href="../../index.html">Home</a>
+    <a href="../snake/index.html">Snake</a>
+    <a href="../connect4/index.html">Connect 4</a>
+    <a href="#" class="active">Pong</a>
+  </div>
+</nav>
+
+<div class="pong-page">
+
+  <!-- LEFT: GAME -->
+  <div class="game-area">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="background:linear-gradient(90deg,#ff2d78,#b400ff,#00f5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+        ▮ PONG.EXE
+      </h2>
+      <div class="mode-tabs">
+        <button class="mode-tab active-ai" id="tabAI" onclick="switchMode('ai')">AI vs AI</button>
+        <button class="mode-tab" id="tabHuman" onclick="switchMode('human')">You vs AI</button>
+      </div>
+    </div>
+
+    <div class="versus-bar">
+      <span class="left-label">◀ LEFT AI</span>
+      <span class="vs-badge">VS</span>
+      <span class="right-label">RIGHT AI ▶</span>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="aiControls" class="controls">
+      <button class="btn btn-purple" id="btnPlayPause" onclick="toggleTraining()">⏸ PAUSE</button>
+      <button class="btn btn-ghost" onclick="newWatchMatch()">🔄 NEW MATCH</button>
+    </div>
+
+    <div id="humanControls">
+      <div class="controls">
+        <button class="btn btn-purple" onclick="startHumanGame()">▶ START</button>
+        <button class="btn btn-ghost" onclick="stopHumanGame()">⏹ STOP</button>
+      </div>
+      <p class="key-hint">W / S — move your paddle (left side)</p>
+    </div>
+
+    <div class="speed-row" id="speedRow">
+      <span>SPEED</span>
+      <input type="range" id="speedSlider" min="1" max="100" value="5" oninput="setSpeed(this.value)" />
+      <span id="speedLabel">5x</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: PANEL -->
+  <div>
+
+    <div class="panel-card">
+      <h3>⚡ Training Stats</h3>
+      <div class="stat-row">
+        <span class="stat-label">Generation</span>
+        <span class="stat-white" id="statGen">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Left fitness</span>
+        <span class="stat-left" id="statLeft">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Right fitness</span>
+        <span class="stat-right" id="statRight">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Avg rallies</span>
+        <span class="stat-white" id="statRally">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Best ever 🏆</span>
+        <span class="stat-white" id="statBest">—</span>
+      </div>
+      <!-- Win rate bar -->
+      <div style="margin-top:0.75rem;font-size:0.75rem;color:#666;font-family:'Share Tech Mono',monospace">WIN RATE</div>
+      <div class="win-bar">
+        <div id="winBarLeft"  style="width:50%"></div>
+        <div id="winBarRight" style="width:50%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-top:3px;font-family:'Share Tech Mono',monospace">
+        <span style="color:#ff2d78" id="winPctLeft">50%</span>
+        <span style="color:#00f5ff" id="winPctRight">50%</span>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <h3>📈 Fitness Chart</h3>
+      <canvas id="chartCanvas" class="chart-canvas"></canvas>
+    </div>
+
+    <div class="panel-card">
+      <h3>🧠 Architecture</h3>
+      <div class="stat-row"><span class="stat-label">Inputs</span><span class="stat-white">6</span></div>
+      <div class="stat-row"><span class="stat-label">Hidden layers</span><span class="stat-white">12 → 8</span></div>
+      <div class="stat-row"><span class="stat-label">Outputs</span><span class="stat-white">3 (up/stay/down)</span></div>
+      <div class="stat-row"><span class="stat-label">Population</span><span class="stat-white">50 × 2 sides</span></div>
+      <div class="stat-row"><span class="stat-label">Method</span><span class="stat-white">Co-evolution GA</span></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/neat.js"></script>
+<script src="pong.js"></script>
+<script>
+let trainer     = null;
+let renderer    = null;
+let mode        = 'ai';
+let humanGame   = null;
+let humanInterval = null;
+let humanAI     = null;
+let animFrame   = null;
+let totalLeft   = 0;
+let totalRight  = 0;
+
+function init() {
+  const canvas = document.getElementById('gameCanvas');
+  renderer = new PongRenderer(canvas);
+
+  trainer = new PongTrainer({ populationSize: 50, onGeneration: onGen });
+  trainer.start();
+
+  renderLoop();
+}
+
+function renderLoop() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  function tick() {
+    if (mode === 'ai' && trainer) {
+      renderer.draw(trainer.watchGame);
+    } else if (humanGame) {
+      renderer.draw(humanGame);
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// Advance watch game in ai mode — separate from training loop
+setInterval(() => {
+  if (mode !== 'ai' || !trainer) return;
+  trainer.stepWatchGame();
+  if (trainer.watchGame.over) {
+    const w = trainer.watchGame.scoreL >= 5 ? 'left' : trainer.watchGame.scoreR >= 5 ? 'right' : null;
+    if (w === 'left') totalLeft++;
+    if (w === 'right') totalRight++;
+    updateWinBar();
+  }
+}, 16);
+
+function onGen({ generation, bestLeft, bestRight, avgRallies, bestEver }) {
+  document.getElementById('statGen').textContent   = generation;
+  document.getElementById('statLeft').textContent  = bestLeft.toFixed(0);
+  document.getElementById('statRight').textContent = bestRight.toFixed(0);
+  document.getElementById('statRally').textContent = avgRallies.toFixed(1);
+  document.getElementById('statBest').textContent  = bestEver.toFixed(0);
+  drawPongChart(trainer.gaLeft.history, trainer.gaRight.history);
+}
+
+function updateWinBar() {
+  const total = totalLeft + totalRight || 1;
+  const lPct  = Math.round((totalLeft  / total) * 100);
+  const rPct  = 100 - lPct;
+  document.getElementById('winBarLeft').style.width  = lPct + '%';
+  document.getElementById('winBarRight').style.width = rPct + '%';
+  document.getElementById('winPctLeft').textContent  = lPct + '%';
+  document.getElementById('winPctRight').textContent = rPct + '%';
+}
+
+function drawPongChart(histL, histR) {
+  const canvas = document.getElementById('chartCanvas');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width  = canvas.offsetWidth || 280;
+  const H = canvas.height = 110;
+  ctx.clearRect(0, 0, W, H);
+
+  const hist = histL.length > histR.length ? histL : histR;
+  if (hist.length < 2) return;
+
+  const maxVal = Math.max(...histL.map(h => h.best), ...histR.map(h => h.best), 1);
+  const sx = W / (hist.length - 1);
+  const sy = H / maxVal;
+
+  // Grid
+  ctx.strokeStyle = '#1a0a2a'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const y = H - (i / 3) * H;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  const drawLine = (data, color) => {
+    if (data.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.shadowColor = color; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    data.forEach((h, i) => {
+      const x = i * (W / (data.length - 1));
+      const y = H - h.best * sy;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  };
+
+  drawLine(histL, '#ff2d78');
+  drawLine(histR, '#00f5ff');
+}
+
+function toggleTraining() {
+  if (!trainer) return;
+  trainer.toggle();
+  document.getElementById('btnPlayPause').textContent = trainer.running ? '⏸ PAUSE' : '▶ RESUME';
+}
+
+function newWatchMatch() {
+  if (trainer) trainer.watchGame = new PongGame();
+}
+
+function setSpeed(v) {
+  document.getElementById('speedLabel').textContent = v + 'x';
+  if (trainer) trainer.setSpeed(parseInt(v));
+}
+
+// Human vs AI mode
+function switchMode(m) {
+  mode = m;
+  document.getElementById('tabAI').className    = 'mode-tab' + (m === 'ai' ? ' active-ai' : '');
+  document.getElementById('tabHuman').className = 'mode-tab' + (m === 'human' ? ' active-left' : '');
+  document.getElementById('aiControls').style.display    = m === 'ai' ? 'flex' : 'none';
+  document.getElementById('humanControls').style.display = m === 'human' ? 'block' : 'none';
+  document.getElementById('speedRow').style.display      = m === 'ai' ? 'flex' : 'none';
+
+  if (m === 'human') {
+    if (trainer) trainer.pause();
+    startHumanGame();
+  } else {
+    stopHumanGame();
+    if (trainer) trainer.start();
+  }
+}
+
+function startHumanGame() {
+  stopHumanGame();
+  humanGame = new PongGame();
+  const rightBrain = trainer?.getBestBrains().right;
+  humanAI = rightBrain ? new PongAI(rightBrain, 'right') : null;
+
+  humanInterval = setInterval(() => {
+    if (humanAI) humanAI.act(humanGame);
+    humanGame.step();
+    if (humanGame.over) {
+      const msg = humanGame.scoreL >= 5 ? 'YOU WIN! 🎉' : 'AI WINS 🤖';
+      showToast(msg);
+      clearInterval(humanInterval);
+    }
+  }, 1000 / 60);
+}
+
+function stopHumanGame() {
+  if (humanInterval) { clearInterval(humanInterval); humanInterval = null; }
+  humanGame = null;
+}
+
+const keys = {};
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup',   e => { keys[e.key] = false; });
+
+// Poll keys for human paddle
+setInterval(() => {
+  if (mode !== 'human' || !humanGame || humanGame.over) return;
+  if (keys['w'] || keys['W'] || keys['ArrowUp'])    humanGame.moveLeft(-1);
+  if (keys['s'] || keys['S'] || keys['ArrowDown'])  humanGame.moveLeft(1);
+}, 16);
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
