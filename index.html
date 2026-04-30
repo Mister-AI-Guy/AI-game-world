@@ -69,14 +69,15 @@
     <a href="index.html" class="active">Home</a>
     <a href="games/snake/index.html">Snake</a>
     <a href="games/connect4/index.html">Connect 4</a>
+    <a href="games/pong/index.html">Pong</a>
     <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">GitHub</a>
   </div>
 </nav>
 
 <!-- Stats bar -->
 <div class="stat-bar">
-  <div class="stat-item"><span>Games Live</span><span>2</span></div>
-  <div class="stat-item"><span>AI Models</span><span>2</span></div>
+  <div class="stat-item"><span>Games Live</span><span>3</span></div>
+  <div class="stat-item"><span>AI Models</span><span>3</span></div>
   <div class="stat-item"><span>Next game drops in</span><span id="countdown">—</span></div>
   <div class="stat-item"><span>Open Source</span><span>✅ GitHub</span></div>
 </div>
@@ -132,13 +133,16 @@
     </div>
   </div>
 
-  <div class="game-card coming-soon">
-    <div class="game-card-thumb soon-thumb">🏓</div>
+  <div class="game-card" onclick="location.href='games/pong/index.html'">
+    <div class="game-card-thumb" style="background:linear-gradient(135deg,#05050f,#1a0a2a)">🏓</div>
     <div class="game-card-body">
       <div class="game-card-title">Pong</div>
-      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Two AI agents train against each other — winner stays.</p>
-      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+      <div class="game-card-meta">
+        <span class="badge badge-new">New</span>
+        <span class="badge badge-classic">Synthwave</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Two neural AIs co-evolve against each other. Neon synthwave art style with pixel ball trail and glow effects.</p>
+      <a href="games/pong/index.html" class="btn btn-primary">▶ Watch AI Play</a>
     </div>
   </div>
 
