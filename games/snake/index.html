@@ -8,59 +8,68 @@
   <style>
     .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .mode-tab {
-      padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid var(--border);
-      cursor: pointer; font-size: 0.85rem; background: transparent; color: var(--text-dim);
+      padding: 0.4rem 1rem; border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer; font-size: 0.85rem;
+      background: transparent; color: var(--text-dim);
       transition: all 0.2s;
     }
     .mode-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
-    #humanControls { display: none; }
-    .key-hint { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin-top: 0.5rem; }
+    .agent-tabs {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .agent-tab {
+      padding: 0.3rem 0.9rem; border-radius: 20px;
+      border: 1px solid var(--border);
+      cursor: pointer; font-size: 0.8rem;
+      background: transparent; color: var(--text-dim);
+      transition: all 0.2s;
+    }
+    .agent-tab.active  { background: var(--accent3); border-color: var(--accent3); color: #000; font-weight: 700; }
+    .agent-tab.custom  { border-color: var(--accent); }
+    .agent-tab.custom.active { background: var(--accent); color: #fff; }
 
-    .watch-switch {
-      display: flex; align-items: center; gap: 0.5rem;
-      font-size: 0.82rem; color: var(--text-dim);
+    .training-badge {
+      display: inline-block; width: 7px; height: 7px;
+      border-radius: 50%; background: var(--accent3);
+      margin-right: 5px; animation: pulse 1.2s infinite;
     }
-    .switch {
-      position: relative; width: 36px; height: 20px;
-    }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .switch-slider {
-      position: absolute; cursor: pointer; inset: 0;
-      background: var(--border); border-radius: 20px; transition: 0.2s;
-    }
-    .switch-slider:before {
-      content: ''; position: absolute;
-      width: 14px; height: 14px; left: 3px; bottom: 3px;
-      background: white; border-radius: 50%; transition: 0.2s;
-    }
-    input:checked + .switch-slider { background: var(--accent); }
-    input:checked + .switch-slider:before { transform: translateX(16px); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
     .population-grid {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
       gap: 3px;
-      margin-top: 0.5rem;
     }
     .pop-dot {
       width: 100%; aspect-ratio: 1;
-      border-radius: 2px;
-      background: var(--border);
-      transition: background 0.3s;
+      border-radius: 2px; background: var(--border);
+      transition: background 0.2s;
     }
     .pop-dot.alive { background: var(--accent3); }
-    .pop-dot.best { background: var(--accent); }
+    .pop-dot.best  { background: var(--accent); }
+
+    .speed-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.82rem; color: var(--text-dim);
+      margin-top: 0.75rem;
+    }
+    input[type=range] { flex: 1; accent-color: var(--accent); }
+
+    .key-hint { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
 
 <nav>
-  <span class="nav-logo">🤖 AI Game World</span>
+  <span class="nav-logo">AI Game World</span>
   <div class="nav-links">
     <a href="../../index.html">Home</a>
     <a href="#" class="active">Snake</a>
     <a href="../connect4/index.html">Connect 4</a>
+    <a href="../pong/index.html">Pong</a>
   </div>
 </nav>
 
@@ -69,10 +78,10 @@
   <!-- LEFT: GAME -->
   <div class="game-area">
     <div class="game-title-bar">
-      <h2>🐍 Snake</h2>
+      <h2>Snake</h2>
       <div class="mode-tabs">
-        <button class="mode-tab active" id="tabAI" onclick="switchMode('ai')">Watch AI</button>
-        <button class="mode-tab" id="tabHuman" onclick="switchMode('human')">Play Yourself</button>
+        <button class="mode-tab active" id="tabWatch" onclick="switchMode('watch')">Watch AI</button>
+        <button class="mode-tab"        id="tabPlay"  onclick="switchMode('play')">Play yourself</button>
       </div>
     </div>
 
@@ -80,33 +89,49 @@
       <canvas id="gameCanvas"></canvas>
     </div>
 
-    <div id="aiControls" class="controls">
-      <button class="btn btn-primary" id="btnPlayPause" onclick="toggleTraining()">⏸ Pause</button>
-      <button class="btn btn-ghost" onclick="resetTraining()">🔄 Reset</button>
-      <button class="btn btn-ghost" onclick="openNewAgentModal()">➕ New AI</button>
+    <!-- AI watch controls -->
+    <div id="watchControls" class="controls">
+      <button class="btn btn-primary" id="btnPause" onclick="toggleSelected()">Pause</button>
+      <button class="btn btn-ghost"   onclick="resetSelected()">Reset generation</button>
     </div>
 
-    <div id="humanControls">
+    <!-- Human controls -->
+    <div id="humanControls" style="display:none">
       <div class="controls">
-        <button class="btn btn-primary" id="btnStartHuman" onclick="startHumanGame()">▶ Start</button>
-        <button class="btn btn-ghost" onclick="stopHumanGame()">⏹ Stop</button>
+        <button class="btn btn-primary" id="btnStartHuman" onclick="startHumanGame()">Start</button>
+        <button class="btn btn-ghost"   onclick="stopHumanGame()">Stop</button>
       </div>
       <p class="key-hint">Arrow keys or WASD to move</p>
     </div>
 
-    <div class="slider-row" id="speedRow">
+    <!-- Speed slider -->
+    <div class="speed-row" id="speedRow">
       <span>Speed</span>
-      <input type="range" id="speedSlider" min="1" max="200" value="10" oninput="setSpeed(this.value)" />
+      <input type="range" id="speedSlider" min="1" max="300" value="10"
+             oninput="setSpeed(this.value)" />
       <span id="speedLabel">10x</span>
     </div>
   </div>
 
-  <!-- RIGHT: AI PANEL -->
+  <!-- RIGHT: PANEL -->
   <div class="ai-panel">
 
-    <!-- Master AI stats -->
+    <!-- Agent selector -->
     <div class="panel-card">
-      <h3>🧠 Master AI</h3>
+      <h3>Active AI</h3>
+      <div class="agent-tabs" id="agentTabs">
+        <button class="agent-tab active" id="tab-master" onclick="selectAgent('master')">
+          <span class="training-badge"></span>Master AI
+        </button>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;font-size:0.82rem" onclick="spawnNewAI()">
+        + Train new AI from scratch
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel-card">
+      <h3>Training stats</h3>
       <div class="stat-row">
         <span class="stat-label">Generation</span>
         <span class="stat-value accent" id="statGen">0</span>
@@ -117,83 +142,35 @@
       </div>
       <div class="stat-row">
         <span class="stat-label">Avg score</span>
-        <span class="stat-value" id="statAvg">0.0</span>
+        <span class="stat-value" id="statAvg">0</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Best ever 🏆</span>
+        <span class="stat-label">Best ever</span>
         <span class="stat-value good" id="statBestEver">0</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Population</span>
-        <span class="stat-value" id="statPop">100</span>
-      </div>
-      <div class="progress-bar" style="margin-top:0.5rem">
-        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        <span class="stat-label">Alive</span>
+        <span class="stat-value" id="statAlive">0 / 0</span>
       </div>
     </div>
 
-    <!-- Fitness chart -->
+    <!-- Chart -->
     <div class="panel-card">
-      <h3>📈 Training Progress</h3>
+      <h3>Training progress</h3>
       <canvas id="chartCanvas" class="chart-canvas"></canvas>
     </div>
 
-    <!-- Population alive dots -->
+    <!-- Population dots -->
     <div class="panel-card">
-      <h3>👥 Population</h3>
+      <h3>Population</h3>
       <div class="population-grid" id="popGrid"></div>
-      <div style="margin-top:0.75rem; display:flex; gap:1rem; font-size:0.75rem; color:var(--text-dim)">
-        <span><span style="color:var(--accent3)">■</span> Alive</span>
-        <span><span style="color:var(--accent)">■</span> Best</span>
-        <span><span style="color:var(--border)">■</span> Dead</span>
+      <div style="display:flex;gap:1rem;font-size:0.75rem;color:var(--text-dim);margin-top:0.6rem">
+        <span><span style="color:var(--accent3)">&#9632;</span> Alive</span>
+        <span><span style="color:var(--accent)">&#9632;</span> Best</span>
+        <span><span style="color:var(--border)">&#9632;</span> Dead</span>
       </div>
     </div>
 
-    <!-- Extra AI agents -->
-    <div class="panel-card">
-      <h3>🤖 AI Agents</h3>
-      <div class="agent-list" id="agentList">
-        <div class="agent-item master">
-          <div class="agent-dot green"></div>
-          <span class="agent-name">Master AI</span>
-          <span class="agent-score" id="masterScore">Training...</span>
-        </div>
-      </div>
-      <button class="btn btn-ghost" style="width:100%;margin-top:0.75rem" onclick="openNewAgentModal()">
-        ➕ Train New Agent
-      </button>
-    </div>
-
-  </div>
-</div>
-
-<!-- New Agent Modal -->
-<div class="modal-overlay" id="newAgentModal">
-  <div class="modal">
-    <h2>🤖 Create New AI Agent</h2>
-    <div class="form-group">
-      <label>Agent Name</label>
-      <input type="text" id="agentNameInput" placeholder="e.g. Explorer-1" value="Agent-1" />
-    </div>
-    <div class="form-group">
-      <label>Population Size</label>
-      <select id="agentPopInput">
-        <option value="20">20 (fast)</option>
-        <option value="50" selected>50 (balanced)</option>
-        <option value="100">100 (thorough)</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Start From</label>
-      <select id="agentStartInput">
-        <option value="scratch">Scratch (random)</option>
-        <option value="master">Master AI brain</option>
-      </select>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="createNewAgent()">Create & Watch</button>
-    </div>
   </div>
 </div>
 
@@ -202,128 +179,178 @@
 <script src="../../shared/neat.js"></script>
 <script src="snake.js"></script>
 <script>
-// ─────────────────────────────────────
-// MAIN CONTROLLER
-// ─────────────────────────────────────
-
-const canvas = document.getElementById('gameCanvas');
-const renderer = new SnakeRenderer(canvas);
-let masterTrainer = null;
-let extraAgents = [];      // { name, trainer }
-let watchingAgent = null;  // null = master, else extraAgents index
-let mode = 'ai';           // 'ai' | 'human'
-let humanGame = null;
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let renderer   = null;
+let masterAI   = null;
+let customAIs  = [];          // [{id, ai}]
+let selectedId = 'master';
+let mode       = 'watch';
+let humanGame  = null;
 let humanInterval = null;
-let animFrame = null;
-let agentCounter = 1;
+let customCount = 0;
 
-function initMaster() {
-  masterTrainer = new SnakeTrainer({
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+window.addEventListener('load', () => {
+  const canvas = document.getElementById('gameCanvas');
+  renderer = new SnakeRenderer(canvas);
+
+  masterAI = new SnakeAIInstance({
+    name: 'Master AI',
     populationSize: 100,
-    onGeneration: onGen
+    isMaster: true,
+    onGeneration: (stats) => {
+      if (selectedId === 'master') updateStats(stats, masterAI.ga.history);
+    },
   });
-  masterTrainer.start();
-  buildPopGrid(100);
+  masterAI.start();
+  buildPopGrid('popGrid', 100);
+
+  // Main RAF loop
   loop();
-}
+});
 
-function onGen({ generation, best, avg, bestEver }) {
-  document.getElementById('statGen').textContent = generation;
-  document.getElementById('statBest').textContent = best;
-  document.getElementById('statAvg').textContent = avg.toFixed(1);
-  document.getElementById('statBestEver').textContent = bestEver;
-  document.getElementById('masterScore').textContent = `Gen ${generation} | Best: ${bestEver}`;
-
-  // Progress bar — crude estimate based on best score
-  const pct = Math.min(100, (bestEver / 50) * 100);
-  document.getElementById('progressFill').style.width = pct + '%';
-
-  drawChart(document.getElementById('chartCanvas'), masterTrainer.ga.history);
-  updateExtraAgentStats();
-}
-
+// ─────────────────────────────────────────
+// MAIN LOOP
+// ─────────────────────────────────────────
 function loop() {
-  if (animFrame) cancelAnimationFrame(animFrame);
+  requestAnimationFrame(loop);
 
-  function tick() {
-    if (mode === 'ai') {
-      const trainer = watchingAgent === null ? masterTrainer : extraAgents[watchingAgent]?.trainer;
-      if (trainer) {
-        trainer.tick();
-        const agent = trainer.getWatchAgent();
-        if (agent) renderer.draw(agent.game);
-        updatePopGrid(trainer);
-      }
+  if (mode === 'watch') {
+    const ai = getSelectedAI();
+    if (ai) {
+      ai.tick();
+      const agent = ai.getWatchAgent();
+      if (agent) renderer.draw(agent.game);
+      updatePopGrid('popGrid', ai._agents);
+      document.getElementById('statAlive').textContent =
+        ai.getAliveCount() + ' / ' + ai.popSize;
     }
-    animFrame = requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-// Population grid
-function buildPopGrid(size) {
-  const grid = document.getElementById('popGrid');
-  grid.innerHTML = '';
-  for (let i = 0; i < size; i++) {
-    const d = document.createElement('div');
-    d.className = 'pop-dot';
-    d.id = `dot-${i}`;
-    grid.appendChild(d);
+  } else if (mode === 'play' && humanGame) {
+    renderer.draw(humanGame);
   }
 }
 
-function updatePopGrid(trainer) {
-  const agents = trainer.agents;
-  const best = trainer.getWatchAgent();
-  for (let i = 0; i < agents.length; i++) {
-    const dot = document.getElementById(`dot-${i}`);
-    if (!dot) continue;
-    if (agents[i] === best && agents[i].alive) dot.className = 'pop-dot best';
-    else if (agents[i].alive) dot.className = 'pop-dot alive';
-    else dot.className = 'pop-dot';
+// ─────────────────────────────────────────
+// AGENT MANAGEMENT
+// ─────────────────────────────────────────
+function getSelectedAI() {
+  if (selectedId === 'master') return masterAI;
+  const entry = customAIs.find(a => a.id === selectedId);
+  return entry ? entry.ai : null;
+}
+
+function selectAgent(id) {
+  selectedId = id;
+  document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('tab-' + id);
+  if (tab) tab.classList.add('active');
+
+  const ai = getSelectedAI();
+  if (ai) {
+    buildPopGrid('popGrid', ai.popSize);
+    document.getElementById('speedSlider').value = ai._speed;
+    document.getElementById('speedLabel').textContent = ai._speed + 'x';
+    updateStats({
+      generation: ai.generation,
+      best: ai.lastBest,
+      avg: ai.lastAvg,
+      bestEver: ai.bestEver,
+    }, ai.ga.history);
   }
 }
 
-// Training controls
-function toggleTraining() {
-  const trainer = watchingAgent === null ? masterTrainer : extraAgents[watchingAgent]?.trainer;
-  if (!trainer) return;
-  trainer.toggle();
-  document.getElementById('btnPlayPause').textContent = trainer.running ? '⏸ Pause' : '▶ Resume';
+function spawnNewAI() {
+  customCount++;
+  const id   = 'custom-' + customCount;
+  const name = 'Agent ' + customCount;
+
+  const ai = new SnakeAIInstance({
+    name,
+    populationSize: 50,
+    isMaster: false,
+    onGeneration: (stats) => {
+      if (selectedId === id) updateStats(stats, ai.ga.history);
+    },
+  });
+  ai.start();
+  customAIs.push({ id, ai });
+
+  const tabs = document.getElementById('agentTabs');
+  const btn  = document.createElement('button');
+  btn.className = 'agent-tab custom';
+  btn.id = 'tab-' + id;
+  btn.onclick = () => selectAgent(id);
+  btn.innerHTML = '<span class="training-badge" style="background:var(--accent)"></span>' + name;
+  tabs.appendChild(btn);
+
+  selectAgent(id);
+  showToast(name + ' started — watch it learn from scratch');
 }
 
-function resetTraining() {
-  if (masterTrainer) masterTrainer.pause();
-  cancelAnimationFrame(animFrame);
-  initMaster();
-  showToast('Master AI reset!');
+// ─────────────────────────────────────────
+// STATS + CHART
+// ─────────────────────────────────────────
+function updateStats({ generation, best, avg, bestEver }, history) {
+  document.getElementById('statGen').textContent     = generation;
+  document.getElementById('statBest').textContent    = best;
+  document.getElementById('statAvg').textContent     = typeof avg === 'number' ? avg.toFixed(1) : avg;
+  document.getElementById('statBestEver').textContent = bestEver;
+  drawChart(document.getElementById('chartCanvas'), history);
+}
+
+// ─────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────
+function toggleSelected() {
+  const ai = getSelectedAI();
+  if (!ai) return;
+  ai.toggle();
+  document.getElementById('btnPause').textContent = ai.running ? 'Pause' : 'Resume';
+}
+
+function resetSelected() {
+  const ai = getSelectedAI();
+  if (!ai) return;
+  ai.pause();
+  // Re-init GA
+  ai.ga.init(() => new NeuralNetwork(24, [16, 12], 4));
+  ai.generation = 0; ai.bestEver = 0; ai.lastBest = 0; ai.lastAvg = 0;
+  ai._agents = ai._spawnAgents();
+  ai.start();
+  showToast('Generation reset');
 }
 
 function setSpeed(v) {
   document.getElementById('speedLabel').textContent = v + 'x';
-  const trainer = watchingAgent === null ? masterTrainer : extraAgents[watchingAgent]?.trainer;
-  if (trainer) trainer.setSpeed(parseInt(v));
+  const ai = getSelectedAI();
+  if (ai) ai.setSpeed(parseInt(v));
 }
 
-// Mode switching
+// ─────────────────────────────────────────
+// MODE SWITCHING
+// ─────────────────────────────────────────
 function switchMode(m) {
   mode = m;
-  document.getElementById('tabAI').className = 'mode-tab' + (m === 'ai' ? ' active' : '');
-  document.getElementById('tabHuman').className = 'mode-tab' + (m === 'human' ? ' active' : '');
-  document.getElementById('aiControls').style.display = m === 'ai' ? 'flex' : 'none';
-  document.getElementById('humanControls').style.display = m === 'human' ? 'block' : 'none';
-  document.getElementById('speedRow').style.display = m === 'ai' ? 'flex' : 'none';
+  document.getElementById('tabWatch').classList.toggle('active', m === 'watch');
+  document.getElementById('tabPlay').classList.toggle('active',  m === 'play');
+  document.getElementById('watchControls').style.display  = m === 'watch' ? 'flex' : 'none';
+  document.getElementById('humanControls').style.display  = m === 'play'  ? 'block' : 'none';
+  document.getElementById('speedRow').style.display       = m === 'watch' ? 'flex' : 'none';
 
-  if (m === 'human') {
-    if (masterTrainer) masterTrainer.pause();
+  if (m === 'play') {
     startHumanGame();
   } else {
     stopHumanGame();
-    if (masterTrainer) masterTrainer.start();
   }
 }
 
-// Human mode
+// ─────────────────────────────────────────
+// HUMAN GAME
+// ─────────────────────────────────────────
 function startHumanGame() {
   stopHumanGame();
   humanGame = new SnakeGame();
@@ -332,9 +359,10 @@ function startHumanGame() {
     renderer.draw(humanGame);
     if (!humanGame.alive) {
       clearInterval(humanInterval);
-      showToast(`Game over! Score: ${humanGame.score}`);
+      humanInterval = null;
+      showToast('Game over — score: ' + humanGame.score);
     }
-  }, 150);
+  }, 130);
 }
 
 function stopHumanGame() {
@@ -343,114 +371,16 @@ function stopHumanGame() {
 }
 
 document.addEventListener('keydown', e => {
-  if (mode !== 'human' || !humanGame) return;
+  if (mode !== 'play' || !humanGame) return;
   const map = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3 };
   if (e.key in map) { e.preventDefault(); humanGame.setDir(map[e.key]); }
 });
 
-// Extra agents modal
-function openNewAgentModal() {
-  agentCounter++;
-  document.getElementById('agentNameInput').value = `Agent-${agentCounter}`;
-  document.getElementById('newAgentModal').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('newAgentModal').classList.remove('open');
-}
-
-function createNewAgent() {
-  const name = document.getElementById('agentNameInput').value || `Agent-${agentCounter}`;
-  const popSize = parseInt(document.getElementById('agentPopInput').value);
-  const startFrom = document.getElementById('agentStartInput').value;
-
-  const trainer = new SnakeTrainer({ populationSize: popSize });
-
-  // If starting from master brain, seed population
-  if (startFrom === 'master' && masterTrainer.getBestBrain()) {
-    const masterBrain = masterTrainer.getBestBrain();
-    trainer.ga.population = trainer.ga.population.map(() =>
-      masterBrain.clone().mutate(0.2, 0.3)
-    );
-    trainer.agents = trainer._spawnAgents();
-  }
-
-  trainer.start();
-  const idx = extraAgents.length;
-  extraAgents.push({ name, trainer });
-
-  // Add to agent list
-  const list = document.getElementById('agentList');
-  const item = document.createElement('div');
-  item.className = 'agent-item watching';
-  item.id = `agent-item-${idx}`;
-  item.innerHTML = `
-    <div class="agent-dot blue"></div>
-    <span class="agent-name">${name}</span>
-    <span class="agent-score" id="extra-score-${idx}">Gen 0</span>
-    <div class="agent-actions">
-      <button class="icon-btn" title="Watch" onclick="watchExtra(${idx})">👁</button>
-      <button class="icon-btn" title="Remove" onclick="removeExtra(${idx})">✕</button>
-    </div>
-  `;
-  list.appendChild(item);
-
-  // Rebuild pop grid for this agent size
-  buildPopGrid(popSize);
-  watchExtra(idx);
-
-  closeModal();
-  showToast(`${name} created and training!`);
-}
-
-function watchExtra(idx) {
-  watchingAgent = idx;
-  const trainer = extraAgents[idx]?.trainer;
-  if (trainer) {
-    buildPopGrid(trainer.popSize);
-    trainer.setSpeed(parseInt(document.getElementById('speedSlider').value));
-  }
-  showToast(`Watching ${extraAgents[idx]?.name}`);
-}
-
-function watchMaster() {
-  watchingAgent = null;
-  buildPopGrid(100);
-}
-
-function removeExtra(idx) {
-  extraAgents[idx].trainer.pause();
-  extraAgents[idx] = null;
-  const item = document.getElementById(`agent-item-${idx}`);
-  if (item) item.remove();
-  if (watchingAgent === idx) { watchingAgent = null; watchMaster(); }
-}
-
-function updateExtraAgentStats() {
-  extraAgents.forEach((a, i) => {
-    if (!a) return;
-    const el = document.getElementById(`extra-score-${i}`);
-    if (el) el.textContent = `Gen ${a.trainer.generation} | Best: ${a.trainer.bestEver}`;
-  });
-}
-
-// Toast
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
-
-// Init
-window.addEventListener('load', () => {
-  initMaster();
-});
-
-// Click master agent item
-document.getElementById('agentList').addEventListener('click', e => {
-  if (e.target.closest('.agent-item.master')) watchMaster();
-});
 </script>
 </body>
 </html>
