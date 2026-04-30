@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect 4 — AI Game World</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .mode-tab {
+      padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid var(--border);
+      cursor: pointer; font-size: 0.85rem; background: transparent; color: var(--text-dim);
+      transition: all 0.2s;
+    }
+    .mode-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+    .turn-indicator {
+      display: flex; gap: 1rem; align-items: center;
+      margin-bottom: 0.75rem; font-size: 0.9rem;
+    }
+    .player-chip {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: inline-block; margin-right: 6px;
+    }
+    .chip-red { background: #ff4466; }
+    .chip-yellow { background: #ffd700; }
+    .active-chip { outline: 3px solid white; outline-offset: 2px; }
+
+    .col-buttons { display: flex; gap: 2px; margin-bottom: 0.5rem; }
+    .col-btn {
+      width: 64px; height: 30px; background: var(--border);
+      border: none; cursor: pointer; color: var(--text); border-radius: 4px;
+      font-size: 1rem; transition: background 0.2s;
+    }
+    .col-btn:hover { background: var(--accent); }
+    #colBtns { display: none; }
+
+    .match-log {
+      max-height: 140px; overflow-y: auto;
+      font-size: 0.78rem; color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+    .match-log div { padding: 2px 0; border-bottom: 1px solid var(--border); }
+    .win { color: var(--accent3); }
+    .loss { color: var(--accent2); }
+    .draw { color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">🤖 AI Game World</span>
+  <div class="nav-links">
+    <a href="../../index.html">Home</a>
+    <a href="../snake/index.html">Snake</a>
+    <a href="#" class="active">Connect 4</a>
+  </div>
+</nav>
+
+<div class="game-page">
+
+  <!-- LEFT: GAME -->
+  <div class="game-area">
+    <div class="game-title-bar">
+      <h2>🔴 Connect 4</h2>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabAI" onclick="switchMode('ai')">Watch AI</button>
+        <button class="mode-tab" id="tabVsAI" onclick="switchMode('vsai')">Play vs AI</button>
+        <button class="mode-tab" id="tabHuman" onclick="switchMode('human')">2 Players</button>
+      </div>
+    </div>
+
+    <div class="turn-indicator" id="turnIndicator">
+      <span><span class="player-chip chip-red" id="chip1"></span>Neural AI</span>
+      <span>vs</span>
+      <span><span class="player-chip chip-yellow" id="chip2"></span>Minimax</span>
+    </div>
+
+    <!-- Column drop buttons (human mode) -->
+    <div id="colBtns" class="col-buttons">
+      <button class="col-btn" onclick="humanDrop(0)">▼</button>
+      <button class="col-btn" onclick="humanDrop(1)">▼</button>
+      <button class="col-btn" onclick="humanDrop(2)">▼</button>
+      <button class="col-btn" onclick="humanDrop(3)">▼</button>
+      <button class="col-btn" onclick="humanDrop(4)">▼</button>
+      <button class="col-btn" onclick="humanDrop(5)">▼</button>
+      <button class="col-btn" onclick="humanDrop(6)">▼</button>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="controls" id="aiControls">
+      <button class="btn btn-primary" id="btnPlayPause" onclick="toggleTraining()">⏸ Pause</button>
+      <button class="btn btn-ghost" onclick="resetMatch()">🔄 New Match</button>
+      <button class="btn btn-ghost" onclick="openNewAgentModal()">➕ New AI</button>
+    </div>
+
+    <div class="controls" id="humanControls" style="display:none">
+      <button class="btn btn-primary" onclick="resetMatch()">🔄 New Game</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: AI PANEL -->
+  <div class="ai-panel">
+
+    <div class="panel-card">
+      <h3>🧠 Neural AI Stats</h3>
+      <div class="stat-row">
+        <span class="stat-label">Generation</span>
+        <span class="stat-value accent" id="statGen">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Best score</span>
+        <span class="stat-value good" id="statBest">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Avg score</span>
+        <span class="stat-value" id="statAvg">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Best ever 🏆</span>
+        <span class="stat-value good" id="statBestEver">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Status</span>
+        <span class="stat-value" id="statStatus">Training...</span>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <h3>📈 Training Progress</h3>
+      <canvas id="chartCanvas" class="chart-canvas"></canvas>
+    </div>
+
+    <div class="panel-card">
+      <h3>📋 Match Log</h3>
+      <div class="match-log" id="matchLog">
+        <div class="draw">Waiting for training to start...</div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <h3>🤖 AI Agents</h3>
+      <div class="agent-list" id="agentList">
+        <div class="agent-item master">
+          <div class="agent-dot green"></div>
+          <span class="agent-name">Master Neural AI</span>
+          <span class="agent-score" id="masterScore">Training...</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:0.75rem" onclick="openNewAgentModal()">
+        ➕ Train New Agent
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="newAgentModal">
+  <div class="modal">
+    <h2>🤖 Create New AI Agent</h2>
+    <div class="form-group">
+      <label>Agent Name</label>
+      <input type="text" id="agentNameInput" value="NeuralAgent-1" />
+    </div>
+    <div class="form-group">
+      <label>Population Size</label>
+      <select id="agentPopInput">
+        <option value="20">20 (fast)</option>
+        <option value="50" selected>50 (balanced)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createNewAgent()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/neat.js"></script>
+<script src="connect4.js"></script>
+<script>
+let trainer = null;
+let renderer = null;
+let mode = 'ai';
+let watchInterval = null;
+let humanGame = null;
+let agentCounter = 0;
+let extraAgents = [];
+let matchCount = 0;
+
+function init() {
+  const canvas = document.getElementById('gameCanvas');
+  renderer = new Connect4Renderer(canvas);
+
+  trainer = new Connect4Trainer({
+    populationSize: 50,
+    onGeneration: onGen
+  });
+  trainer.start();
+
+  // Watch game loop — step every 600ms
+  watchInterval = setInterval(stepWatchGame, 600);
+}
+
+function onGen({ generation, best, avg, bestEver }) {
+  document.getElementById('statGen').textContent = generation;
+  document.getElementById('statBest').textContent = best;
+  document.getElementById('statAvg').textContent = avg.toFixed(1);
+  document.getElementById('statBestEver').textContent = bestEver;
+  document.getElementById('statStatus').textContent = 'Training...';
+  document.getElementById('masterScore').textContent = `Gen ${generation} | Best: ${bestEver}`;
+  drawChart(document.getElementById('chartCanvas'), trainer.ga.history);
+
+  matchCount++;
+  addLog(`Gen ${generation} — Best: ${best}, Avg: ${avg.toFixed(1)}`, best >= 100 ? 'win' : best < 50 ? 'loss' : 'draw');
+}
+
+function stepWatchGame() {
+  if (mode !== 'ai' || !trainer || !trainer.watchGame) return;
+  trainer.stepWatchGame();
+  renderer.draw(trainer.watchGame);
+  if (trainer.watchGame.over) {
+    // Reset after 1.5s
+    setTimeout(() => { if (trainer) trainer.watchGame = new Connect4Game(); }, 1500);
+  }
+}
+
+function toggleTraining() {
+  if (!trainer) return;
+  trainer.toggle();
+  document.getElementById('btnPlayPause').textContent = trainer.running ? '⏸ Pause' : '▶ Resume';
+  document.getElementById('statStatus').textContent = trainer.running ? 'Training...' : 'Paused';
+}
+
+function resetMatch() {
+  if (mode === 'ai' && trainer) {
+    trainer.watchGame = new Connect4Game();
+    renderer.draw(trainer.watchGame);
+  } else if (humanGame) {
+    humanGame = new Connect4Game();
+    renderer.draw(humanGame);
+  }
+}
+
+function switchMode(m) {
+  mode = m;
+  ['tabAI','tabVsAI','tabHuman'].forEach(id => document.getElementById(id).className = 'mode-tab');
+  document.getElementById('tab' + (m === 'ai' ? 'AI' : m === 'vsai' ? 'VsAI' : 'Human')).className = 'mode-tab active';
+
+  document.getElementById('aiControls').style.display = m === 'ai' ? 'flex' : 'none';
+  document.getElementById('humanControls').style.display = m !== 'ai' ? 'flex' : 'none';
+  document.getElementById('colBtns').style.display = m !== 'ai' ? 'flex' : 'none';
+
+  if (m === 'ai') {
+    humanGame = null;
+  } else {
+    humanGame = new Connect4Game();
+    renderer.draw(humanGame);
+    if (m === 'vsai') {
+      document.getElementById('turnIndicator').innerHTML = `
+        <span><span class="player-chip chip-red" id="chip1"></span>You (Red)</span>
+        <span>vs</span>
+        <span><span class="player-chip chip-yellow"></span>AI (Yellow)</span>
+      `;
+    } else {
+      document.getElementById('turnIndicator').innerHTML = `
+        <span><span class="player-chip chip-red"></span>Player 1</span>
+        <span>vs</span>
+        <span><span class="player-chip chip-yellow"></span>Player 2</span>
+      `;
+    }
+  }
+}
+
+function humanDrop(col) {
+  if (!humanGame || humanGame.over) return;
+  if (humanGame.current === 2 && mode === 'vsai') return; // wait for AI
+
+  humanGame.drop(col);
+  renderer.draw(humanGame);
+
+  if (humanGame.over) {
+    const msg = humanGame.winner === 0 ? 'Draw!' : `Player ${humanGame.winner} wins!`;
+    showToast(msg);
+    return;
+  }
+
+  // AI turn in vsai mode
+  if (mode === 'vsai' && humanGame.current === 2 && trainer) {
+    setTimeout(() => {
+      const brain = trainer.getBestBrain();
+      if (brain) {
+        const ai = new Connect4NeuralAI(brain);
+        const col = ai.getBestMove(humanGame);
+        humanGame.drop(col);
+      } else {
+        const mm = new Connect4Minimax(3);
+        humanGame.drop(mm.getBestMove(humanGame));
+      }
+      renderer.draw(humanGame);
+      if (humanGame.over) {
+        const msg = humanGame.winner === 0 ? 'Draw!' : humanGame.winner === 2 ? 'AI wins! 🤖' : 'You win! 🎉';
+        showToast(msg);
+      }
+    }, 300);
+  }
+}
+
+function addLog(msg, cls = '') {
+  const log = document.getElementById('matchLog');
+  const d = document.createElement('div');
+  d.className = cls;
+  d.textContent = msg;
+  log.insertBefore(d, log.firstChild);
+  if (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+function openNewAgentModal() {
+  agentCounter++;
+  document.getElementById('agentNameInput').value = `NeuralAgent-${agentCounter}`;
+  document.getElementById('newAgentModal').classList.add('open');
+}
+function closeModal() { document.getElementById('newAgentModal').classList.remove('open'); }
+
+function createNewAgent() {
+  const name = document.getElementById('agentNameInput').value;
+  const popSize = parseInt(document.getElementById('agentPopInput').value);
+  const t = new Connect4Trainer({ populationSize: popSize, onGeneration: () => {} });
+  t.start();
+  const idx = extraAgents.length;
+  extraAgents.push({ name, trainer: t });
+
+  const list = document.getElementById('agentList');
+  const item = document.createElement('div');
+  item.className = 'agent-item watching';
+  item.innerHTML = `
+    <div class="agent-dot blue"></div>
+    <span class="agent-name">${name}</span>
+    <span class="agent-score" id="xscore-${idx}">Training...</span>
+    <div class="agent-actions">
+      <button class="icon-btn" onclick="removeExtra(${idx})">✕</button>
+    </div>
+  `;
+  list.appendChild(item);
+  closeModal();
+  showToast(`${name} created!`);
+
+  // Update scores every few seconds
+  setInterval(() => {
+    const el = document.getElementById(`xscore-${idx}`);
+    if (el && extraAgents[idx]) el.textContent = `Gen ${extraAgents[idx].trainer.generation} | Best: ${extraAgents[idx].trainer.bestEver}`;
+  }, 2000);
+}
+
+function removeExtra(idx) {
+  if (extraAgents[idx]) { extraAgents[idx].trainer.pause(); extraAgents[idx] = null; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
