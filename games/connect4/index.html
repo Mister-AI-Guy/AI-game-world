@@ -5,49 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connect 4 — AI Game World</title>
   <link rel="stylesheet" href="../../css/style.css" />
-  <style>
-    .turn-bar {
-      display: flex; align-items: center; gap: 0.75rem;
-      font-size: 0.83rem; margin-bottom: 0.75rem; color: var(--text-dim);
-    }
-    .chip { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
-    .chip-red    { background: #f05068; }
-    .chip-yellow { background: #f5c842; }
-
-    .col-buttons { display: flex; gap: 2px; margin-bottom: 4px; }
-    .col-btn {
-      flex: 1; height: 26px;
-      background: var(--bg3); border: 1px solid var(--border);
-      cursor: pointer; color: var(--text-dim);
-      border-radius: 5px; font-size: 0.75rem; font-family: var(--font);
-      transition: all 0.15s;
-    }
-    .col-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
-
-    /* Speed control row */
-    .speed-control {
-      display: flex; align-items: center; gap: 0.75rem;
-      font-size: 0.8rem; color: var(--text-dim);
-      padding: 0.6rem 0; border-top: 1px solid var(--border); margin-top: 0.75rem;
-    }
-    .speed-control span.label { white-space: nowrap; }
-    .speed-presets { display: flex; gap: 0.35rem; }
-    .speed-btn {
-      padding: 0.25rem 0.6rem; border-radius: 5px;
-      border: 1px solid var(--border); background: transparent;
-      font-size: 0.75rem; color: var(--text-dim); cursor: pointer;
-      font-family: var(--font); transition: all 0.15s;
-    }
-    .speed-btn:hover { border-color: var(--border2); color: var(--text); }
-    .speed-btn.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
-
-    .watch-speed-row {
-      display: flex; align-items: center; gap: 0.6rem;
-      font-size: 0.8rem; color: var(--text-dim);
-      padding: 0.6rem 0; border-top: 1px solid var(--border); margin-top: 0.75rem;
-    }
-    .watch-speed-row input[type=range] { flex: 1; }
-  </style>
 </head>
 <body>
 
