@@ -252,6 +252,10 @@
   </div>
 </footer>
 
+<script src="shared/neat.js"></script>
+<script src="games/snake/snake.js"></script>
+<script src="games/connect4/connect4.js"></script>
+
 <script>
 // ─── Countdown ───────────────────────────────────
 function updateCountdown() {
@@ -273,261 +277,187 @@ function updateCountdown() {
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
-// ─── Snake thumbnail preview ─────────────────────
+// ─── Thumbnail master AIs ────────────────────────
+// Each thumbnail runs an actual master AI using the real game engine.
+// trainSpeed is high so they learn quickly in the background.
+// The canvas renders the best-brain watch game at a normal visible pace.
+
+// SNAKE thumbnail
 (function() {
-  const c = document.getElementById('snakeThumb');
-  if (!c) return;
-  const ctx = c.getContext('2d');
-  const W = 300, H = 155, CELL = 10, GRID = 20;
+  const canvas = document.getElementById('snakeThumb');
+  if (!canvas) return;
+  canvas.width  = 300;
+  canvas.height = 155;
 
-  let snake = [{x:10,y:7},{x:9,y:7},{x:8,y:7},{x:7,y:7},{x:6,y:7}];
-  let food  = {x:15, y:5};
-  let dir   = {x:1,y:0};
-  let t = 0;
+  // Scale the snake grid to fit the thumbnail
+  const thumbRenderer = {
+    draw(game) {
+      const ctx = canvas.getContext('2d');
+      const W = 300, H = 155;
+      const CELL = 15, COLS = Math.floor(W / CELL), ROWS = Math.floor(H / CELL);
 
-  function drawThumb() {
-    ctx.fillStyle = '#080810';
-    ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#080810';
+      ctx.fillRect(0, 0, W, H);
 
-    // Grid dots
-    ctx.fillStyle = '#1a1a2e';
-    for (let x = 0; x < GRID; x++) for (let y = 0; y < GRID; y++) {
-      if (x * CELL < W && y * CELL < H) ctx.fillRect(x * CELL + 4, y * CELL + 4, 2, 2);
-    }
+      // Grid dots
+      ctx.fillStyle = '#131328';
+      for (let x = 0; x < COLS; x++)
+        for (let y = 0; y < ROWS; y++)
+          ctx.fillRect(x * CELL + 6, y * CELL + 6, 2, 2);
 
-    // Food
-    ctx.fillStyle = '#f06292';
-    ctx.beginPath();
-    ctx.arc(food.x * CELL + CELL/2, food.y * CELL + CELL/2, CELL/2 - 1, 0, Math.PI*2);
-    ctx.fill();
+      // Scale factor from game grid (20) to thumb
+      const sx = W / GRID;
+      const sy = H / GRID;
 
-    // Snake
-    snake.forEach((s, i) => {
-      const ratio = i / snake.length;
-      ctx.fillStyle = i === 0 ? '#5b7cfa'
-        : `rgba(${80 + ratio*30|0}, ${60 + ratio*40|0}, ${220 - ratio*60|0}, ${1 - ratio*0.4})`;
-      ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
-    });
-  }
-
-  function moveThumb() {
-    t++;
-    if (t % 8 !== 0) { drawThumb(); requestAnimationFrame(moveThumb); return; }
-
-    const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
-
-    // Bounce off walls / random direction changes
-    if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 14 ||
-        snake.some(s => s.x === head.x && s.y === head.y)) {
-      // Pick a new random valid dir
-      const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-      const valid = dirs.filter(d => {
-        const nx = snake[0].x + d.x, ny = snake[0].y + d.y;
-        return nx>=0 && nx<20 && ny>=0 && ny<14 && !snake.some(s=>s.x===nx&&s.y===ny);
-      });
-      if (valid.length) dir = valid[Math.floor(Math.random() * valid.length)];
-      drawThumb(); requestAnimationFrame(moveThumb); return;
-    }
-
-    snake.unshift(head);
-    if (head.x === food.x && head.y === food.y) {
-      food = {x: Math.floor(Math.random()*20), y: Math.floor(Math.random()*14)};
-    } else {
-      snake.pop();
-    }
-
-    // Random dir nudge toward food sometimes
-    if (Math.random() < 0.3) {
-      const dx = food.x - snake[0].x, dy = food.y - snake[0].y;
-      if (Math.abs(dx) > Math.abs(dy) && dx !== 0) dir = {x: dx>0?1:-1, y:0};
-      else if (dy !== 0) dir = {x:0, y: dy>0?1:-1};
-    }
-
-    drawThumb();
-    requestAnimationFrame(moveThumb);
-  }
-  moveThumb();
-})();
-
-// ─── Connect 4 thumbnail preview ─────────────────
-(function() {
-  const c = document.getElementById('c4Thumb');
-  if (!c) return;
-  const ctx = c.getContext('2d');
-  const W = 300, H = 155;
-  const COLS = 7, ROWS = 4, CELL = Math.floor(W / COLS);
-  const board = Array.from({length: ROWS}, () => new Array(COLS).fill(0));
-  let moveHistory = [];
-
-  // Pre-fill with a partial game state
-  const moves = [[3,1],[3,2],[2,1],[4,2],[2,1],[5,2],[4,1]];
-  moves.forEach(([col, player]) => {
-    for (let r = ROWS-1; r>=0; r--) {
-      if (board[r][col] === 0) { board[r][col] = player; break; }
-    }
-  });
-
-  let animCol = -1, animRow = -1, animPlayer = 0, animY = 0;
-  let waiting = 0;
-
-  function drawC4() {
-    ctx.fillStyle = '#0e0e2a';
-    ctx.fillRect(0, 0, W, H);
-
-    for (let r = 0; r < ROWS; r++) {
-      for (let col2 = 0; col2 < COLS; col2++) {
-        const x = col2 * CELL + CELL/2;
-        const y = r * (H/ROWS) + (H/ROWS)/2;
-        const cell = board[r][col2];
-
-        ctx.beginPath();
-        ctx.arc(x, y, CELL/2 - 5, 0, Math.PI*2);
-        if (cell === 1) ctx.fillStyle = '#f05068';
-        else if (cell === 2) ctx.fillStyle = '#f5c842';
-        else ctx.fillStyle = '#060618';
-        ctx.fill();
-
-        if (cell !== 0) {
-          ctx.strokeStyle = cell === 1 ? '#ff2244' : '#ffdd00';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Animated dropping piece
-    if (animCol >= 0) {
-      const targetY = animRow * (H/ROWS) + (H/ROWS)/2;
+      // Food
+      ctx.fillStyle = '#f06292';
       ctx.beginPath();
-      ctx.arc(animCol * CELL + CELL/2, animY, CELL/2 - 5, 0, Math.PI*2);
-      ctx.fillStyle = animPlayer === 1 ? '#f05068' : '#f5c842';
+      ctx.arc(game.food.x * sx + sx/2, game.food.y * sy + sy/2, sx/2 - 1, 0, Math.PI*2);
       ctx.fill();
+
+      // Snake
+      game.snake.forEach((seg, i) => {
+        const t = i / Math.max(game.snake.length, 1);
+        ctx.fillStyle = i === 0 ? '#5b7cfa'
+          : `rgba(${80 + t*20|0}, ${60|0}, ${220 - t*60|0}, ${1 - t*0.45})`;
+        ctx.fillRect(seg.x * sx + 1, seg.y * sy + 1, sx - 2, sy - 2);
+      });
+
+      // Label
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(4, 4, 120, 18);
+      ctx.fillStyle = '#7b8db0';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('Master AI  gen ' + snakeMaster.generation + '  score ' + game.score, 8, 16);
     }
+  };
+
+  window.snakeMaster = new SnakeAIInstance({
+    name: 'Master AI',
+    populationSize: 50,
+    isMaster: true,
+    onGeneration: () => {},
+  });
+  snakeMaster.trainSpeed = 30;
+  snakeMaster.start();
+
+  function loop() {
+    requestAnimationFrame(loop);
+    snakeMaster.tick();
+    thumbRenderer.draw(snakeMaster.getWatchGame());
   }
-
-  function autoPlay() {
-    waiting++;
-    if (waiting < 80) { drawC4(); requestAnimationFrame(autoPlay); return; }
-    waiting = 0;
-
-    // Pick a valid column
-    const valid = Array.from({length:COLS},(_,i)=>i).filter(i=>board[0][i]===0);
-    if (!valid.length) {
-      // Reset board
-      for(let r=0;r<ROWS;r++) for(let col=0;col<COLS;col++) board[r][col]=0;
-      const m2 = [[3,1],[3,2],[2,1],[4,2],[2,1],[5,2],[4,1]];
-      m2.forEach(([col,p])=>{for(let r=ROWS-1;r>=0;r--)if(board[r][col]===0){board[r][col]=p;break;}});
-      drawC4(); requestAnimationFrame(autoPlay); return;
-    }
-    const col = valid[Math.floor(Math.random()*valid.length)];
-    let targetRow = -1;
-    for (let r = ROWS-1; r>=0; r--) if(board[r][col]===0){targetRow=r;break;}
-
-    // Determine player
-    let p1=0,p2=0;
-    board.forEach(r=>r.forEach(c=>{if(c===1)p1++;if(c===2)p2++;}));
-    const player = p1<=p2?1:2;
-
-    animCol = col; animRow = targetRow; animPlayer = player; animY = 0;
-
-    function dropAnim() {
-      animY += 6;
-      const targetY = animRow * (H/ROWS) + (H/ROWS)/2;
-      if (animY >= targetY) {
-        animY = targetY;
-        board[targetRow][col] = player;
-        animCol = -1;
-        drawC4(); requestAnimationFrame(autoPlay);
-      } else {
-        drawC4(); requestAnimationFrame(dropAnim);
-      }
-    }
-    dropAnim();
-  }
-  autoPlay();
+  loop();
 })();
 
-// ─── Pong thumbnail preview ───────────────────────
+// CONNECT 4 thumbnail
 (function() {
-  const c = document.getElementById('pongThumb');
-  if (!c) return;
-  const ctx = c.getContext('2d');
+  const canvas = document.getElementById('c4Thumb');
+  if (!canvas) return;
+  canvas.width  = 300;
+  canvas.height = 155;
+  const ctx = canvas.getContext('2d');
   const W = 300, H = 155;
-  let bx = W/2, by = H/2, vx = 2.2, vy = 1.5;
+  const COLS = 7, ROWS = 6;
+  const CW = W / COLS, CH = H / ROWS;
+
+  window.c4Master = new Connect4AIInstance({
+    name: 'Master AI',
+    populationSize: 20,
+    isMaster: true,
+    onGeneration: () => {},
+  });
+  c4Master.trainSpeed = 5;
+  c4Master.start();
+
+  function drawC4(game) {
+    ctx.fillStyle = '#0d1020';
+    ctx.fillRect(0, 0, W, H);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cx = c * CW + CW/2, cy = r * CH + CH/2;
+        const radius = Math.min(CW, CH) / 2 - 4;
+        const cell = game.board[r][c];
+        const inWin = game.winLine && game.winLine.some(([wr,wc]) => wr===r && wc===c);
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI*2);
+        if (cell === 0)      ctx.fillStyle = '#060614';
+        else if (cell === 1) ctx.fillStyle = inWin ? '#ff1a44' : '#f05068';
+        else                 ctx.fillStyle = inWin ? '#f0c000' : '#f5c842';
+        ctx.fill();
+      }
+    }
+    // Label
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(4, 4, 150, 18);
+    ctx.fillStyle = '#7b8db0';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('Master AI  gen ' + c4Master.generation, 8, 16);
+  }
+
+  // Advance the watch game at human-readable pace
+  setInterval(() => {
+    c4Master.stepWatchGame();
+  }, 700);
+
+  // RAF: run training + redraw
+  function loop() {
+    requestAnimationFrame(loop);
+    c4Master.tick();
+    drawC4(c4Master.watchGame);
+  }
+  loop();
+})();
+
+// PONG thumbnail — standalone animation (no shared engine, just visual)
+(function() {
+  const canvas = document.getElementById('pongThumb');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = 300; canvas.height = 155;
+  const W = 300, H = 155;
+  let bx = W/2, by = H/2, vx = 2.5, vy = 1.6;
   let ly = H/2-25, ry = H/2-25;
-  const PH = 50, PW = 8;
+  const PH = 48, PW = 8;
   let trail = [];
 
   function drawPong() {
-    ctx.fillStyle = '#05050f';
-    ctx.fillRect(0, 0, W, H);
-
-    // Grid lines
-    ctx.strokeStyle = 'rgba(150,0,255,0.07)';
-    ctx.lineWidth = 1;
-    for (let y = 0; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    ctx.fillStyle = '#05050f'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(150,0,255,0.07)'; ctx.lineWidth = 1;
+    for (let y = 0; y < H; y += 22) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
     for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-
-    // Scanlines
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
-
-    // Center line
-    ctx.setLineDash([4,5]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Trail
+    ctx.setLineDash([4,5]); ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
     trail.forEach((p,i) => {
-      const a = (i/trail.length)*0.4;
-      const s = 4*(i/trail.length);
-      ctx.fillStyle = `rgba(255,247,0,${a})`;
-      ctx.fillRect(p.x-s/2, p.y-s/2, s, s);
+      const a = (i/trail.length)*0.4, s = 4*(i/trail.length);
+      ctx.fillStyle = `rgba(255,247,0,${a})`; ctx.fillRect(p.x-s/2, p.y-s/2, s, s);
     });
-
-    // Ball
     ctx.shadowColor = '#fff700'; ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(bx-4, by-4, 8, 8);
-    ctx.fillStyle = '#fff700';
-    ctx.fillRect(bx-2, by-2, 4, 4);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(bx-4, by-4, 8, 8);
+    ctx.fillStyle = '#fff700'; ctx.fillRect(bx-2, by-2, 4, 4);
     ctx.shadowBlur = 0;
-
-    // Left paddle
     ctx.shadowColor = '#ff2d78'; ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ff2d78';
-    ctx.fillRect(12, ly, PW, PH);
-    ctx.shadowBlur = 0;
-
-    // Right paddle
+    ctx.fillStyle = '#ff2d78'; ctx.fillRect(12, ly, PW, PH); ctx.shadowBlur = 0;
     ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 10;
-    ctx.fillStyle = '#00f5ff';
-    ctx.fillRect(W-20, ry, PW, PH);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#00f5ff'; ctx.fillRect(W-20, ry, PW, PH); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(4, 4, 100, 18);
+    ctx.fillStyle = '#7b8db0'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('AI vs AI  live', 8, 16);
   }
 
   function movePong() {
-    trail.push({x:bx,y:by});
-    if (trail.length > 12) trail.shift();
-
+    trail.push({x:bx,y:by}); if (trail.length > 12) trail.shift();
     bx += vx; by += vy;
     if (by < 0 || by > H) vy *= -1;
-    if (bx < 20+PW && by > ly && by < ly+PH) vx = Math.abs(vx);
-    if (bx > W-20-PW && by > ry && by < ry+PH) vx = -Math.abs(vx);
-    if (bx < 0 || bx > W) { bx = W/2; by = H/2; vx *= -1; trail = []; }
-
-    // Paddle AI (simple)
-    if (by > ly + PH/2) ly = Math.min(H-PH, ly+2.5);
-    else ly = Math.max(0, ly-2.5);
-    if (by > ry + PH/2) ry = Math.min(H-PH, ry+2.5);
-    else ry = Math.max(0, ry-2.5);
-
-    drawPong();
-    requestAnimationFrame(movePong);
+    if (bx < 20+PW && by > ly && by < ly+PH) { vx = Math.abs(vx)*1.02; }
+    if (bx > W-20-PW && by > ry && by < ry+PH) { vx = -Math.abs(vx)*1.02; }
+    if (bx < 0 || bx > W) { bx = W/2; by = H/2; vx = (Math.random()>0.5?1:-1)*2.5; vy = (Math.random()-0.5)*3; trail = []; }
+    const speed = Math.sqrt(vx*vx+vy*vy); if (speed > 8) { vx *= 8/speed; vy *= 8/speed; }
+    if (by > ly+PH/2) ly = Math.min(H-PH, ly+2.8); else ly = Math.max(0, ly-2.8);
+    if (by > ry+PH/2) ry = Math.min(H-PH, ry+2.8); else ry = Math.max(0, ry-2.8);
+    drawPong(); requestAnimationFrame(movePong);
   }
   movePong();
 })();
 </script>
-</body>
-</html>
