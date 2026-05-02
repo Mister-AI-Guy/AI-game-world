@@ -5,58 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pong — AI Game World</title>
   <link rel="stylesheet" href="../../css/style.css" />
-  <style>
-    /* Pong-specific overrides — synthwave palette */
-    .versus-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 0.75rem; font-size: 0.85rem;
-    }
-    .left-label  { color: #ff2d78; font-weight: 600; }
-    .right-label { color: #00f5ff; font-weight: 600; }
-    .vs-badge {
-      background: var(--bg3); border: 1px solid var(--border2);
-      padding: 2px 12px; border-radius: 20px;
-      font-size: 0.72rem; color: var(--text-faint);
-      font-weight: 700; letter-spacing: 0.08em;
-    }
-
-    .win-bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; background: var(--bg3); margin-top: 0.5rem; }
-    #winBarLeft  { background: #ff2d78; transition: width 0.5s; }
-    #winBarRight { background: #00f5ff; transition: width 0.5s; }
-
-    .speed-control {
-      display: flex; align-items: center; gap: 0.75rem;
-      font-size: 0.8rem; color: var(--text-dim);
-      padding: 0.6rem 0; border-top: 1px solid var(--border); margin-top: 0.75rem;
-    }
-    .speed-control .label { white-space: nowrap; }
-    .speed-presets { display: flex; gap: 0.35rem; }
-    .speed-btn {
-      padding: 0.25rem 0.6rem; border-radius: 5px;
-      border: 1px solid var(--border); background: transparent;
-      font-size: 0.75rem; color: var(--text-dim); cursor: pointer;
-      font-family: var(--font); transition: all 0.15s;
-    }
-    .speed-btn:hover  { border-color: var(--border2); color: var(--text); }
-    .speed-btn.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
-
-    .watch-speed-row {
-      display: flex; align-items: center; gap: 0.6rem;
-      font-size: 0.8rem; color: var(--text-dim);
-      padding: 0.6rem 0; border-top: 1px solid var(--border);
-    }
-    .watch-speed-row input[type=range] { flex: 1; }
-
-    /* Pong canvas is wider than snake — let it scroll horizontally on small screens */
-    .pong-canvas-wrapper {
-      overflow-x: auto;
-      background: #05050f;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      margin-bottom: 1.1rem;
-    }
-    .pong-canvas-wrapper canvas { display: block; }
-  </style>
 </head>
 <body>
 
