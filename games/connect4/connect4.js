@@ -81,7 +81,6 @@ class Connect4Game {
     return null;
   }
 
-  // 43 inputs: board from AI perspective + current turn flag
   getInputs(forPlayer) {
     const inputs = [];
     for (let r = 0; r < C4_ROWS; r++) {
@@ -138,15 +137,13 @@ class Connect4Game {
 // Minimax opponent
 // ─────────────────────────────────────
 class Connect4Minimax {
-  constructor(depth = 3) {
+  constructor(depth = 2) {
     this.depth = depth;
-    this.name = 'Minimax d=' + depth;
   }
 
   getBestMove(game) {
     const valid = game.getValidCols();
     if (!valid.length) return 0;
-    // Instant win check
     for (const col of valid) {
       const g = game.clone(); g.drop(col);
       if (g.winner === game.current) return col;
@@ -199,20 +196,19 @@ class Connect4NeuralAI {
   getBestMove(game) {
     const valid = game.getValidCols();
     if (!valid.length) return 0;
-    // Instant win / block check first (helps early in training)
+    // Instant win
     for (const col of valid) {
       const g = game.clone(); g.drop(col);
       if (g.winner === game.current) return col;
     }
+    // Block opponent win
     const opp = game.current === 1 ? 2 : 1;
     for (const col of valid) {
-      const g = game.clone();
-      g.current = opp; g.drop(col);
+      const g = game.clone(); g.current = opp; g.drop(col);
       if (g.winner === opp) return col;
     }
     const inputs = game.getInputs(game.current);
     const outputs = this.brain.predict(inputs);
-    // Pick best valid column
     let best = valid[0], bestScore = -Infinity;
     for (const col of valid) {
       if (outputs[col] > bestScore) { bestScore = outputs[col]; best = col; }
@@ -222,8 +218,10 @@ class Connect4NeuralAI {
 }
 
 // ─────────────────────────────────────
-// Connect4AIInstance — one trainable AI
-// name, population, independent GA + training loop
+// Connect4AIInstance
+// Separation of concerns:
+//   - background training runs via RAF loop (many gens per frame when speed > 1)
+//   - watch game is a separate live game stepped by the page at human-readable pace
 // ─────────────────────────────────────
 class Connect4AIInstance {
   constructor({ name = 'AI', populationSize = 30, isMaster = false, onGeneration } = {}) {
@@ -236,7 +234,10 @@ class Connect4AIInstance {
     this.lastBest = 0;
     this.lastAvg = 0;
     this.running = false;
-    this._loopId = null;
+
+    // Speed: how many training generations to run per RAF tick
+    // 1 = one gen per tick (moderate), higher = faster training
+    this.trainSpeed = 1;
 
     this.ga = new GeneticAlgorithm({
       populationSize,
@@ -246,66 +247,77 @@ class Connect4AIInstance {
     });
     this.ga.init(() => new NeuralNetwork(43, [32, 16], 7));
 
-    // Opponents at increasing difficulty
     this._opps = [
       new Connect4Minimax(1),
       new Connect4Minimax(2),
       new Connect4Minimax(3),
     ];
 
-    // Watch game state — one game being played for display
+    // Watch game — always shows the best brain playing a live game
     this.watchGame = new Connect4Game();
-    this._watchAI = new Connect4NeuralAI(this.ga.population[0].clone());
+    this._watchAI  = new Connect4NeuralAI(this.ga.population[0]);
     this._watchOpp = this._opps[0];
-    this._watchTurn = 0; // steps taken in watch game
   }
 
-  // Evaluate entire population (synchronous, fast)
-  _evalGeneration() {
-    const scores = [];
+  // ── Synchronous: evaluate one full generation ──
+  _runOneGeneration() {
     for (let i = 0; i < this.popSize; i++) {
       const ai = new Connect4NeuralAI(this.ga.population[i]);
-      // Play against 3 opponents, score is sum
       let total = 0;
       for (const opp of this._opps) {
         total += this._playMatch(ai, opp);
       }
-      scores.push(total);
       this.ga.setFitness(i, total);
     }
-    this.lastAvg = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+    const scores = this.ga.fitnesses;
+    this.lastAvg  = scores.reduce((a, b) => a + b, 0) / scores.length;
     this.lastBest = Math.max(...scores);
     if (this.lastBest > this.bestEver) this.bestEver = this.lastBest;
+
+    this.ga.evolve();
+    this.generation = this.ga.generation;
+
+    // Update watch AI to use best brain
+    const brain = this.ga.bestEver || this.ga.population[0];
+    this._watchAI  = new Connect4NeuralAI(brain);
+    this._watchOpp = this._opps[Math.min(2, Math.floor(this.generation / 8))];
+
+    this.onGeneration({
+      generation: this.generation,
+      best: this.lastBest,
+      avg:  this.lastAvg,
+      bestEver: this.bestEver,
+    });
   }
 
   _playMatch(ai, opp) {
     const game = new Connect4Game();
     let moves = 0;
-    while (!game.over && moves < 100) {
-      if (game.current === 1) {
-        game.drop(ai.getBestMove(game));
-      } else {
-        game.drop(opp.getBestMove(game));
-      }
+    while (!game.over && moves < 50) {
+      if (game.current === 1) game.drop(ai.getBestMove(game));
+      else                    game.drop(opp.getBestMove(game));
       moves++;
     }
     if (game.winner === 1) return 200 + (42 - moves) * 2;
     if (game.winner === 2) return Math.max(0, 50 - moves);
-    return 80; // draw is decent
+    return 80;
   }
 
-  _refreshWatchGame() {
-    // Pick best brain so far for the watch game
-    const brain = this.ga.bestEver || this.ga.population[0];
-    this._watchAI = new Connect4NeuralAI(brain.clone());
-    this._watchOpp = this._opps[Math.min(2, Math.floor(this.generation / 10))];
-    this.watchGame = new Connect4Game();
+  // ── Called by RAF loop ──
+  // Runs trainSpeed generations per call so training keeps up even at speed 1
+  tick() {
+    if (!this.running) return;
+    for (let i = 0; i < this.trainSpeed; i++) {
+      this._runOneGeneration();
+    }
   }
 
-  // Step the watch game by one move (called by renderer)
+  // ── Steps the watch game by ONE move ──
+  // Called by the page timer (human-readable pace)
   stepWatchGame() {
     if (this.watchGame.over) {
-      this._refreshWatchGame();
+      this.watchGame = new Connect4Game();
       return;
     }
     if (this.watchGame.current === 1) {
@@ -315,33 +327,18 @@ class Connect4AIInstance {
     }
   }
 
-  start() {
-    if (this.running) return;
-    this.running = true;
-    this._tick();
+  refreshWatchGame() {
+    const brain = this.ga.bestEver || this.ga.population[0];
+    this._watchAI  = new Connect4NeuralAI(brain);
+    this._watchOpp = this._opps[Math.min(2, Math.floor(this.generation / 8))];
+    this.watchGame = new Connect4Game();
   }
 
-  pause() {
-    this.running = false;
-    if (this._loopId) { clearTimeout(this._loopId); this._loopId = null; }
-  }
+  setTrainSpeed(s) { this.trainSpeed = Math.max(1, Math.min(20, s)); }
 
-  toggle() { if (this.running) this.pause(); else this.start(); }
-
-  _tick() {
-    if (!this.running) return;
-    this._evalGeneration();
-    this.ga.evolve();
-    this.generation = this.ga.generation;
-    this.onGeneration({
-      generation: this.generation,
-      best: this.lastBest,
-      avg: this.lastAvg,
-      bestEver: this.bestEver,
-    });
-    // Schedule next generation — yield to browser between generations
-    this._loopId = setTimeout(() => this._tick(), 0);
-  }
+  start()  { this.running = true; }
+  pause()  { this.running = false; }
+  toggle() { this.running = !this.running; }
 
   getBestBrain() { return this.ga.bestEver; }
 }
@@ -362,10 +359,9 @@ class Connect4Renderer {
     const W = this.canvas.width;
     const H = this.canvas.height;
 
-    ctx.fillStyle = '#1a1a8a';
-    ctx.beginPath();
-    ctx.roundRect(0, 0, W, H, 8);
-    ctx.fill();
+    ctx.fillStyle = '#0d1020';
+    ctx.roundRect ? (ctx.beginPath(), ctx.roundRect(0, 0, W, H, 8), ctx.fill())
+                  : ctx.fillRect(0, 0, W, H);
 
     for (let r = 0; r < C4_ROWS; r++) {
       for (let c = 0; c < C4_COLS; c++) {
@@ -373,40 +369,40 @@ class Connect4Renderer {
         const y = r * C4_CELL + 1;
         const cx = x + C4_CELL / 2;
         const cy = y + C4_CELL / 2;
-        const radius = C4_CELL / 2 - 5;
+        const radius = C4_CELL / 2 - 6;
 
         if (c === hoverCol && game.board[0][c] === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.1)';
+          ctx.fillStyle = 'rgba(91,124,250,0.08)';
           ctx.fillRect(x, 0, C4_CELL, H);
         }
 
-        const cell = game.board[r][c];
+        const cell  = game.board[r][c];
         const inWin = game.winLine && game.winLine.some(([wr, wc]) => wr === r && wc === c);
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
 
-        if (cell === 0)      ctx.fillStyle = '#080810';
-        else if (cell === 1) ctx.fillStyle = inWin ? '#ff0055' : '#ff4466';
-        else                 ctx.fillStyle = inWin ? '#ffdd00' : '#ffd700';
-        ctx.fill();
-
-        if (inWin) {
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 3;
-          ctx.stroke();
+        if (cell === 0)      { ctx.fillStyle = '#060614'; ctx.fill(); }
+        else if (cell === 1) {
+          ctx.fillStyle = inWin ? '#ff1a44' : '#f05068';
+          ctx.fill();
+          if (inWin) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); }
+        } else {
+          ctx.fillStyle = inWin ? '#f0c000' : '#f5c842';
+          ctx.fill();
+          if (inWin) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); }
         }
       }
     }
 
     if (game.over) {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0, H / 2 - 30, W, 60);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, H / 2 - 28, W, 56);
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 22px sans-serif';
+      ctx.font = 'bold 20px Inter, sans-serif';
       ctx.textAlign = 'center';
-      const msg = game.winner === 0 ? 'Draw' : (game.winner === 1 ? 'AI wins' : 'Opponent wins');
-      ctx.fillText(msg, W / 2, H / 2 + 8);
+      const msg = game.winner === 0 ? 'Draw' : game.winner === 1 ? 'AI wins' : 'Opponent wins';
+      ctx.fillText(msg, W / 2, H / 2 + 7);
       ctx.textAlign = 'left';
     }
   }
