@@ -3,238 +3,531 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Game World — Watch AI Learn to Play</title>
+  <title>AI Game World — Watch Neural Networks Learn to Play</title>
+  <meta name="description" content="Watch neural networks evolve and learn to play games in real time. Train your own AI agents, race them against each other, pure browser JavaScript." />
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .week-banner {
-      background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
-      border: 1px solid var(--accent);
-      border-radius: 12px;
-      padding: 1.5rem 2rem;
-      max-width: 1200px;
-      margin: 0 auto 1rem;
-      margin-left: 2rem;
-      margin-right: 2rem;
+    /* Homepage-specific only */
+    .coming-soon { opacity: 0.45; pointer-events: none; }
+    .coming-soon:hover { transform: none !important; box-shadow: none !important; border-color: var(--border) !important; }
+
+    /* Animated canvas thumbnails */
+    .thumb-snake  { background: #080810; }
+    .thumb-c4     { background: #060612; }
+    .thumb-pong   { background: #05050f; }
+    .thumb-soon   { background: var(--bg3); }
+
+    /* Open source card */
+    .oss-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 1rem;
-    }
-    .week-banner h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 0.3rem; }
-    .week-banner p { font-size: 0.85rem; color: var(--text-dim); }
-
-    .coming-soon {
-      opacity: 0.5;
-      pointer-events: none;
+      cursor: default;
     }
 
-    .game-card-thumb.snake-thumb { background: linear-gradient(135deg, #0a0a2e, #1a0a3e); }
-    .game-card-thumb.c4-thumb { background: linear-gradient(135deg, #1a0a0e, #2a1a0e); }
-    .game-card-thumb.soon-thumb { background: var(--bg2); }
-
-    .section-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--text-dim);
-      padding: 0 2rem;
+    .week-banner-wrap {
       max-width: 1200px;
-      margin: 0 auto 0.5rem;
+      margin: 0 auto;
+      padding: 0 2.5rem;
     }
-
-    .countdown {
-      font-family: var(--font-mono);
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--accent3);
-    }
-    .countdown-label { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.2rem; }
-
-    .stat-bar {
-      display: flex; gap: 2rem;
-      padding: 1rem 2rem;
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-      font-size: 0.85rem;
-    }
-    .stat-item { display: flex; flex-direction: column; }
-    .stat-item span:first-child { color: var(--text-dim); font-size: 0.75rem; }
-    .stat-item span:last-child { font-weight: 700; color: var(--accent3); }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
-  <span class="nav-logo">🤖 AI Game World</span>
+  <a href="index.html" class="nav-logo" style="text-decoration:none">
+    <div class="nav-logo-mark">AI</div>
+    <span>AI Game World</span>
+  </a>
   <div class="nav-links">
     <a href="index.html" class="active">Home</a>
     <a href="games/snake/index.html">Snake</a>
     <a href="games/connect4/index.html">Connect 4</a>
     <a href="games/pong/index.html">Pong</a>
-    <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">GitHub</a>
+    <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank" class="nav-github">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.03c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
   </div>
 </nav>
 
-<!-- Stats bar -->
-<div class="stat-bar">
-  <div class="stat-item"><span>Games Live</span><span>3</span></div>
-  <div class="stat-item"><span>AI Models</span><span>3</span></div>
-  <div class="stat-item"><span>Next game drops in</span><span id="countdown">—</span></div>
-  <div class="stat-item"><span>Open Source</span><span>✅ GitHub</span></div>
-</div>
-
-<div class="hero">
-  <h1>AI Game World</h1>
-  <p>Watch neural networks evolve and learn to play games — in real time, in your browser. Train your own AIs, race them against each other, and watch intelligence emerge from scratch.</p>
-</div>
-
-<!-- Current week banner -->
-<div class="week-banner">
-  <div>
-    <h3>🗓 This Week's Game</h3>
-    <p>Snake — A neural network learns to survive and grow using a genetic algorithm with 100 agents per population.</p>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-label">
+    <span class="hero-label-dot"></span>
+    Live training — 3 games online
   </div>
-  <div style="text-align:right">
-    <div class="countdown" id="weekCountdown">—</div>
-    <div class="countdown-label">until next game</div>
+  <h1>Watch <span>neural networks</span><br>learn to play</h1>
+  <p>AI agents train in real time, right in your browser. Watch intelligence emerge from scratch — or train your own.</p>
+  <div class="hero-actions">
+    <a href="games/snake/index.html" class="btn btn-primary">Open Snake</a>
+    <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank" class="btn btn-ghost">View source</a>
+  </div>
+</section>
+
+<!-- STATS STRIP -->
+<div class="stats-strip">
+  <div class="stats-strip-inner">
+    <div class="stat-item">
+      <span class="stat-label">Games live</span>
+      <span class="stat-value">3</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">AI models</span>
+      <span class="stat-value">3</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Next drop</span>
+      <span class="stat-value" id="countdown" style="font-size:0.9rem">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Runs in</span>
+      <span class="stat-value" style="font-size:0.85rem;color:var(--accent3)">Browser only</span>
+    </div>
   </div>
 </div>
 
-<!-- Games -->
-<p class="section-title">🎮 Games</p>
-<div class="games-grid">
+<!-- WEEKLY BANNER -->
+<div class="week-banner-wrap" style="margin-top:2.5rem">
+  <div class="week-banner">
+    <div>
+      <div class="week-banner-label">This week</div>
+      <h3>Snake — Genetic Algorithm</h3>
+      <p>100 neural agents evolve simultaneously. Each sees in 8 directions. Watch the best one survive longer every generation.</p>
+    </div>
+    <div class="countdown-block">
+      <div class="countdown" id="weekCountdown">—</div>
+      <div class="countdown-label">until next game</div>
+    </div>
+  </div>
+</div>
 
-  <div class="game-card" onclick="location.href='games/snake/index.html'">
-    <div class="game-card-thumb snake-thumb">🐍</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Snake</div>
-      <div class="game-card-meta">
-        <span class="badge badge-week">This Week</span>
-        <span class="badge badge-classic">Classic</span>
+<!-- GAMES -->
+<div class="section" style="padding-top:3rem">
+  <div class="section-header">
+    <span class="section-title">Games</span>
+    <span class="section-subtitle">3 live, more every Monday</span>
+  </div>
+
+  <div class="games-grid">
+
+    <!-- Snake -->
+    <div class="game-card is-live" onclick="location.href='games/snake/index.html'">
+      <div class="game-card-thumb thumb-snake">
+        <canvas id="snakeThumb" width="300" height="155"></canvas>
       </div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">
-        Neural network learns to eat food and grow — trained with a genetic algorithm. Watch 100 agents evolve in real time.
-      </p>
-      <a href="games/snake/index.html" class="btn btn-primary">▶ Watch AI Play</a>
-    </div>
-  </div>
-
-  <div class="game-card" onclick="location.href='games/connect4/index.html'">
-    <div class="game-card-thumb c4-thumb">🔴</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Connect 4</div>
-      <div class="game-card-meta">
-        <span class="badge badge-new">Live</span>
-        <span class="badge badge-classic">Classic</span>
+      <div class="game-card-body">
+        <div class="game-card-header">
+          <span class="game-card-title">Snake</span>
+          <span class="badge badge-live">Live</span>
+        </div>
+        <p class="game-card-desc">Neural network learns to eat food and grow. Trained with a genetic algorithm — 100 agents per generation, 8-direction vision.</p>
+        <a href="games/snake/index.html" class="btn btn-primary btn-sm">Watch AI play</a>
       </div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">
-        Neural AI trains against Minimax opponents. Watch it learn strategy — or challenge it yourself.
-      </p>
-      <a href="games/connect4/index.html" class="btn btn-primary">▶ Watch AI Play</a>
     </div>
-  </div>
 
-  <div class="game-card" onclick="location.href='games/pong/index.html'">
-    <div class="game-card-thumb" style="background:linear-gradient(135deg,#05050f,#1a0a2a)">🏓</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Pong</div>
-      <div class="game-card-meta">
-        <span class="badge badge-new">New</span>
-        <span class="badge badge-classic">Synthwave</span>
+    <!-- Connect 4 -->
+    <div class="game-card is-live" onclick="location.href='games/connect4/index.html'">
+      <div class="game-card-thumb thumb-c4">
+        <canvas id="c4Thumb" width="300" height="155"></canvas>
       </div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Two neural AIs co-evolve against each other. Neon synthwave art style with pixel ball trail and glow effects.</p>
-      <a href="games/pong/index.html" class="btn btn-primary">▶ Watch AI Play</a>
+      <div class="game-card-body">
+        <div class="game-card-header">
+          <span class="game-card-title">Connect 4</span>
+          <span class="badge badge-live">Live</span>
+        </div>
+        <p class="game-card-desc">Neural AI trains against progressively harder Minimax opponents. Challenge the master AI yourself once it has learned.</p>
+        <a href="games/connect4/index.html" class="btn btn-primary btn-sm">Watch AI play</a>
+      </div>
     </div>
-  </div>
 
-  <div class="game-card coming-soon">
-    <div class="game-card-thumb soon-thumb">🚗</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Car Racing</div>
-      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Self-driving cars on a procedurally generated track. NEAT evolution.</p>
-      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+    <!-- Pong -->
+    <div class="game-card is-live" onclick="location.href='games/pong/index.html'">
+      <div class="game-card-thumb thumb-pong">
+        <canvas id="pongThumb" width="300" height="155"></canvas>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-header">
+          <span class="game-card-title">Pong</span>
+          <span class="badge badge-new">New</span>
+        </div>
+        <p class="game-card-desc">Two neural AIs co-evolve against each other. Synthwave neon art style with pixel ball trail, glow effects and CRT scanlines.</p>
+        <a href="games/pong/index.html" class="btn btn-primary btn-sm">Watch AI play</a>
+      </div>
     </div>
-  </div>
 
-  <div class="game-card coming-soon">
-    <div class="game-card-thumb soon-thumb">🧩</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Tetris</div>
-      <div class="game-card-meta"><span class="badge badge-classic">Coming Soon</span></div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">AI learns to survive the endless cascade of blocks.</p>
-      <button class="btn btn-ghost" disabled>🔒 Coming Soon</button>
+    <!-- Car Racing (coming soon) -->
+    <div class="game-card coming-soon">
+      <div class="game-card-thumb thumb-soon">
+        <div class="game-card-thumb-placeholder">Coming soon</div>
+        <div class="game-card-coming-overlay">Coming Monday</div>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-header">
+          <span class="game-card-title">Car Racing</span>
+          <span class="badge badge-soon">Soon</span>
+        </div>
+        <p class="game-card-desc">Self-driving cars on a procedurally generated track. NEAT evolution — cars that steer, accelerate and brake on their own.</p>
+        <button class="btn btn-ghost btn-sm" disabled>Locked</button>
+      </div>
     </div>
-  </div>
 
-  <div class="game-card coming-soon">
-    <div class="game-card-thumb soon-thumb">⬛</div>
-    <div class="game-card-body">
-      <div class="game-card-title">Your Game</div>
-      <div class="game-card-meta"><span class="badge badge-new">Open Source</span></div>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Have an idea? Submit a game to the repository.</p>
-      <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank" class="btn btn-ghost" style="pointer-events:all;opacity:1">🔗 GitHub</a>
+    <!-- Tetris (coming soon) -->
+    <div class="game-card coming-soon">
+      <div class="game-card-thumb thumb-soon">
+        <div class="game-card-thumb-placeholder">Coming soon</div>
+        <div class="game-card-coming-overlay">Coming Monday</div>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-header">
+          <span class="game-card-title">Tetris</span>
+          <span class="badge badge-soon">Soon</span>
+        </div>
+        <p class="game-card-desc">AI learns to clear lines and survive the endless cascade of blocks. Fitness based on lines cleared and survival time.</p>
+        <button class="btn btn-ghost btn-sm" disabled>Locked</button>
+      </div>
     </div>
-  </div>
 
-</div>
-
-<!-- About section -->
-<div style="max-width:1200px;margin:2rem auto;padding:0 2rem">
-  <div class="panel-card" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:2rem">
-    <h2 style="margin-bottom:1rem">🧠 How it works</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem">
+    <!-- Open source card -->
+    <div class="oss-card">
       <div>
-        <div style="font-size:2rem;margin-bottom:0.5rem">🧬</div>
-        <strong>Genetic Algorithm</strong>
-        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Each generation, the best-performing agents survive and reproduce. Mutation and crossover create the next generation.</p>
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:0.5rem">Open source</div>
+        <div class="game-card-title" style="margin-bottom:0.5rem">Submit your game</div>
+        <p class="game-card-desc" style="margin-bottom:0">Have an idea? The engine is open — add your own game and AI.</p>
       </div>
-      <div>
-        <div style="font-size:2rem;margin-bottom:0.5rem">🕸</div>
-        <strong>Neural Networks</strong>
-        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Each AI agent has a small neural network as its brain. No gradient descent — just evolution selecting for fitness.</p>
-      </div>
-      <div>
-        <div style="font-size:2rem;margin-bottom:0.5rem">👁</div>
-        <strong>Watch in Real Time</strong>
-        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">All training runs in your browser. No server, no waiting — pure JavaScript. Watch agents improve generation by generation.</p>
-      </div>
-      <div>
-        <div style="font-size:2rem;margin-bottom:0.5rem">➕</div>
-        <strong>Train Your Own</strong>
-        <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.4rem">Spawn your own AI agent, adjust population size and mutation rate, and watch it learn independently.</p>
-      </div>
+      <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank" class="btn btn-ghost btn-sm" style="pointer-events:all;opacity:1">
+        View on GitHub
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="section" style="padding-top:3rem;padding-bottom:3rem">
+  <div class="section-header">
+    <span class="section-title">How it works</span>
+  </div>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-icon">GA</div>
+      <strong>Genetic Algorithm</strong>
+      <p>Each generation the best agents survive and reproduce. Mutation and crossover create the next generation automatically.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">NN</div>
+      <strong>Neural Networks</strong>
+      <p>Every agent runs a small feedforward neural network. No gradient descent — just evolution selecting for performance.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-icon" style="font-size:0.7rem">100%</div>
+      <strong>Runs in Your Browser</strong>
+      <p>No server, no install. Pure vanilla JavaScript. Training runs live while you watch — all computation happens client-side.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">+</div>
+      <strong>Train Your Own</strong>
+      <p>Spawn a new AI agent from scratch on any game. Watch it go from random chaos to a competent player in minutes.</p>
     </div>
   </div>
 </div>
 
+<!-- FOOTER -->
 <footer>
-  <p>AI Game World — Open source. Built with vanilla JS + neural nets.<br>
-  <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">⭐ Star on GitHub</a></p>
+  <div class="footer-left">
+    <strong>AI Game World</strong> — open source, vanilla JS, no dependencies.
+  </div>
+  <div class="footer-right">
+    <a href="games/snake/index.html">Snake</a>
+    <a href="games/connect4/index.html">Connect 4</a>
+    <a href="games/pong/index.html">Pong</a>
+    <a href="https://github.com/Mister-AI-Guy/AI-game-world" target="_blank">GitHub</a>
+  </div>
 </footer>
 
 <script>
-// Countdown to next Monday midnight (new game every Monday)
+// ─── Countdown ───────────────────────────────────
 function updateCountdown() {
-  const now = new Date();
+  const now  = new Date();
   const next = new Date(now);
-  const day = next.getDay();
+  const day  = next.getDay();
   const daysUntilMonday = (8 - day) % 7 || 7;
   next.setDate(next.getDate() + daysUntilMonday);
   next.setHours(0, 0, 0, 0);
-
   const diff = next - now;
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
-
-  const str = `${d}d ${h}h ${m}m ${s}s`;
+  const str = d + 'd ' + h + 'h ' + m + 'm ' + s + 's';
   document.getElementById('countdown').textContent = str;
   document.getElementById('weekCountdown').textContent = str;
 }
-
 setInterval(updateCountdown, 1000);
 updateCountdown();
+
+// ─── Snake thumbnail preview ─────────────────────
+(function() {
+  const c = document.getElementById('snakeThumb');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = 300, H = 155, CELL = 10, GRID = 20;
+
+  let snake = [{x:10,y:7},{x:9,y:7},{x:8,y:7},{x:7,y:7},{x:6,y:7}];
+  let food  = {x:15, y:5};
+  let dir   = {x:1,y:0};
+  let t = 0;
+
+  function drawThumb() {
+    ctx.fillStyle = '#080810';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid dots
+    ctx.fillStyle = '#1a1a2e';
+    for (let x = 0; x < GRID; x++) for (let y = 0; y < GRID; y++) {
+      if (x * CELL < W && y * CELL < H) ctx.fillRect(x * CELL + 4, y * CELL + 4, 2, 2);
+    }
+
+    // Food
+    ctx.fillStyle = '#f06292';
+    ctx.beginPath();
+    ctx.arc(food.x * CELL + CELL/2, food.y * CELL + CELL/2, CELL/2 - 1, 0, Math.PI*2);
+    ctx.fill();
+
+    // Snake
+    snake.forEach((s, i) => {
+      const ratio = i / snake.length;
+      ctx.fillStyle = i === 0 ? '#5b7cfa'
+        : `rgba(${80 + ratio*30|0}, ${60 + ratio*40|0}, ${220 - ratio*60|0}, ${1 - ratio*0.4})`;
+      ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+    });
+  }
+
+  function moveThumb() {
+    t++;
+    if (t % 8 !== 0) { drawThumb(); requestAnimationFrame(moveThumb); return; }
+
+    const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+    // Bounce off walls / random direction changes
+    if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 14 ||
+        snake.some(s => s.x === head.x && s.y === head.y)) {
+      // Pick a new random valid dir
+      const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+      const valid = dirs.filter(d => {
+        const nx = snake[0].x + d.x, ny = snake[0].y + d.y;
+        return nx>=0 && nx<20 && ny>=0 && ny<14 && !snake.some(s=>s.x===nx&&s.y===ny);
+      });
+      if (valid.length) dir = valid[Math.floor(Math.random() * valid.length)];
+      drawThumb(); requestAnimationFrame(moveThumb); return;
+    }
+
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      food = {x: Math.floor(Math.random()*20), y: Math.floor(Math.random()*14)};
+    } else {
+      snake.pop();
+    }
+
+    // Random dir nudge toward food sometimes
+    if (Math.random() < 0.3) {
+      const dx = food.x - snake[0].x, dy = food.y - snake[0].y;
+      if (Math.abs(dx) > Math.abs(dy) && dx !== 0) dir = {x: dx>0?1:-1, y:0};
+      else if (dy !== 0) dir = {x:0, y: dy>0?1:-1};
+    }
+
+    drawThumb();
+    requestAnimationFrame(moveThumb);
+  }
+  moveThumb();
+})();
+
+// ─── Connect 4 thumbnail preview ─────────────────
+(function() {
+  const c = document.getElementById('c4Thumb');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = 300, H = 155;
+  const COLS = 7, ROWS = 4, CELL = Math.floor(W / COLS);
+  const board = Array.from({length: ROWS}, () => new Array(COLS).fill(0));
+  let moveHistory = [];
+
+  // Pre-fill with a partial game state
+  const moves = [[3,1],[3,2],[2,1],[4,2],[2,1],[5,2],[4,1]];
+  moves.forEach(([col, player]) => {
+    for (let r = ROWS-1; r>=0; r--) {
+      if (board[r][col] === 0) { board[r][col] = player; break; }
+    }
+  });
+
+  let animCol = -1, animRow = -1, animPlayer = 0, animY = 0;
+  let waiting = 0;
+
+  function drawC4() {
+    ctx.fillStyle = '#0e0e2a';
+    ctx.fillRect(0, 0, W, H);
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let col2 = 0; col2 < COLS; col2++) {
+        const x = col2 * CELL + CELL/2;
+        const y = r * (H/ROWS) + (H/ROWS)/2;
+        const cell = board[r][col2];
+
+        ctx.beginPath();
+        ctx.arc(x, y, CELL/2 - 5, 0, Math.PI*2);
+        if (cell === 1) ctx.fillStyle = '#f05068';
+        else if (cell === 2) ctx.fillStyle = '#f5c842';
+        else ctx.fillStyle = '#060618';
+        ctx.fill();
+
+        if (cell !== 0) {
+          ctx.strokeStyle = cell === 1 ? '#ff2244' : '#ffdd00';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Animated dropping piece
+    if (animCol >= 0) {
+      const targetY = animRow * (H/ROWS) + (H/ROWS)/2;
+      ctx.beginPath();
+      ctx.arc(animCol * CELL + CELL/2, animY, CELL/2 - 5, 0, Math.PI*2);
+      ctx.fillStyle = animPlayer === 1 ? '#f05068' : '#f5c842';
+      ctx.fill();
+    }
+  }
+
+  function autoPlay() {
+    waiting++;
+    if (waiting < 80) { drawC4(); requestAnimationFrame(autoPlay); return; }
+    waiting = 0;
+
+    // Pick a valid column
+    const valid = Array.from({length:COLS},(_,i)=>i).filter(i=>board[0][i]===0);
+    if (!valid.length) {
+      // Reset board
+      for(let r=0;r<ROWS;r++) for(let col=0;col<COLS;col++) board[r][col]=0;
+      const m2 = [[3,1],[3,2],[2,1],[4,2],[2,1],[5,2],[4,1]];
+      m2.forEach(([col,p])=>{for(let r=ROWS-1;r>=0;r--)if(board[r][col]===0){board[r][col]=p;break;}});
+      drawC4(); requestAnimationFrame(autoPlay); return;
+    }
+    const col = valid[Math.floor(Math.random()*valid.length)];
+    let targetRow = -1;
+    for (let r = ROWS-1; r>=0; r--) if(board[r][col]===0){targetRow=r;break;}
+
+    // Determine player
+    let p1=0,p2=0;
+    board.forEach(r=>r.forEach(c=>{if(c===1)p1++;if(c===2)p2++;}));
+    const player = p1<=p2?1:2;
+
+    animCol = col; animRow = targetRow; animPlayer = player; animY = 0;
+
+    function dropAnim() {
+      animY += 6;
+      const targetY = animRow * (H/ROWS) + (H/ROWS)/2;
+      if (animY >= targetY) {
+        animY = targetY;
+        board[targetRow][col] = player;
+        animCol = -1;
+        drawC4(); requestAnimationFrame(autoPlay);
+      } else {
+        drawC4(); requestAnimationFrame(dropAnim);
+      }
+    }
+    dropAnim();
+  }
+  autoPlay();
+})();
+
+// ─── Pong thumbnail preview ───────────────────────
+(function() {
+  const c = document.getElementById('pongThumb');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = 300, H = 155;
+  let bx = W/2, by = H/2, vx = 2.2, vy = 1.5;
+  let ly = H/2-25, ry = H/2-25;
+  const PH = 50, PW = 8;
+  let trail = [];
+
+  function drawPong() {
+    ctx.fillStyle = '#05050f';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(150,0,255,0.07)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+
+    // Scanlines
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+
+    // Center line
+    ctx.setLineDash([4,5]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Trail
+    trail.forEach((p,i) => {
+      const a = (i/trail.length)*0.4;
+      const s = 4*(i/trail.length);
+      ctx.fillStyle = `rgba(255,247,0,${a})`;
+      ctx.fillRect(p.x-s/2, p.y-s/2, s, s);
+    });
+
+    // Ball
+    ctx.shadowColor = '#fff700'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx-4, by-4, 8, 8);
+    ctx.fillStyle = '#fff700';
+    ctx.fillRect(bx-2, by-2, 4, 4);
+    ctx.shadowBlur = 0;
+
+    // Left paddle
+    ctx.shadowColor = '#ff2d78'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ff2d78';
+    ctx.fillRect(12, ly, PW, PH);
+    ctx.shadowBlur = 0;
+
+    // Right paddle
+    ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#00f5ff';
+    ctx.fillRect(W-20, ry, PW, PH);
+    ctx.shadowBlur = 0;
+  }
+
+  function movePong() {
+    trail.push({x:bx,y:by});
+    if (trail.length > 12) trail.shift();
+
+    bx += vx; by += vy;
+    if (by < 0 || by > H) vy *= -1;
+    if (bx < 20+PW && by > ly && by < ly+PH) vx = Math.abs(vx);
+    if (bx > W-20-PW && by > ry && by < ry+PH) vx = -Math.abs(vx);
+    if (bx < 0 || bx > W) { bx = W/2; by = H/2; vx *= -1; trail = []; }
+
+    // Paddle AI (simple)
+    if (by > ly + PH/2) ly = Math.min(H-PH, ly+2.5);
+    else ly = Math.max(0, ly-2.5);
+    if (by > ry + PH/2) ry = Math.min(H-PH, ry+2.5);
+    else ry = Math.max(0, ry-2.5);
+
+    drawPong();
+    requestAnimationFrame(movePong);
+  }
+  movePong();
+})();
 </script>
 </body>
 </html>
