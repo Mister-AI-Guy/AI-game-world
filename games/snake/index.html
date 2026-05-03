@@ -52,7 +52,6 @@
       <p class="key-hint"><kbd>Arrow keys</kbd> or <kbd>WASD</kbd> to move</p>
     </div>
 
-    <!-- Watch speed: how fast the best snake moves on screen -->
     <div class="watch-speed-row" id="watchSpeedRow">
       <span class="label">Watch speed</span>
       <input type="range" id="watchSpeedSlider" min="40" max="500" value="100" step="10"
@@ -60,7 +59,6 @@
       <span id="watchSpeedLabel" style="min-width:40px">100ms</span>
     </div>
 
-    <!-- Training speed: how fast all agents train in background -->
     <div class="speed-control" id="trainSpeedRow">
       <span class="label">Training speed</span>
       <div class="speed-presets">
@@ -134,9 +132,9 @@
 <script src="../../shared/neat.js"></script>
 <script src="snake.js"></script>
 <script>
-// ─────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────
+const SB_URL = 'https://niyowwhrzlgcipyuemka.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5peW93d2hyemxnY2lweXVlbWthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NDAzNzksImV4cCI6MjA5MzMxNjM3OX0.PzXVkLMbRX72fncxV9ZjSAaIVEVWZIkIh_53uv5Ietw';
+
 let renderer    = null;
 let masterAI    = null;
 let customAIs   = [];
@@ -146,9 +144,6 @@ let humanGame   = null;
 let humanTimer  = null;
 let customCount = 0;
 
-// ─────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────
 window.addEventListener('load', () => {
   renderer = new SnakeRenderer(document.getElementById('gameCanvas'));
 
@@ -156,27 +151,24 @@ window.addEventListener('load', () => {
     name: 'Master AI',
     populationSize: 100,
     isMaster: true,
+    supabaseUrl: SB_URL,
+    supabaseKey: SB_KEY,
     onGeneration: (stats) => {
       if (selectedId === 'master') updateStats(stats, masterAI.ga.history);
     },
   });
   masterAI.start();
   buildPopGrid('popGrid', 100);
-
   rafLoop();
 });
 
-// ─────────────────────────────────────────
-// RAF LOOP — training + canvas redraw
-// ─────────────────────────────────────────
 function rafLoop() {
   requestAnimationFrame(rafLoop);
-
   if (mode === 'watch') {
     const ai = getSelectedAI();
     if (ai) {
-      ai.tick(); // runs trainSpeed steps on background agents
-      renderer.draw(ai.getWatchGame()); // draws the best-brain watch game
+      ai.tick();
+      renderer.draw(ai.getWatchGame());
       updatePopGrid('popGrid', ai._agents);
       document.getElementById('statAlive').textContent = ai.getAliveCount() + ' / ' + ai.popSize;
     }
@@ -185,9 +177,6 @@ function rafLoop() {
   }
 }
 
-// ─────────────────────────────────────────
-// AGENT MANAGEMENT
-// ─────────────────────────────────────────
 function getSelectedAI() {
   if (selectedId === 'master') return masterAI;
   return customAIs.find(a => a.id === selectedId)?.ai || null;
@@ -227,9 +216,6 @@ function spawnNewAI() {
   showToast(name + ' started — watch it learn from zero');
 }
 
-// ─────────────────────────────────────────
-// STATS + CHART
-// ─────────────────────────────────────────
 function updateStats({ generation, best, avg, bestEver }, history) {
   document.getElementById('statGen').textContent      = generation;
   document.getElementById('statBest').textContent     = best || '—';
@@ -238,9 +224,6 @@ function updateStats({ generation, best, avg, bestEver }, history) {
   drawChart(document.getElementById('chartCanvas'), history);
 }
 
-// ─────────────────────────────────────────
-// SPEED CONTROLS
-// ─────────────────────────────────────────
 function setWatchSpeed(ms) {
   document.getElementById('watchSpeedLabel').textContent = ms + 'ms';
   const ai = getSelectedAI();
@@ -250,25 +233,19 @@ function setWatchSpeed(ms) {
 function setTrainSpeed(s, btn) {
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  // Apply to all AIs
   masterAI.setTrainSpeed(s);
   customAIs.forEach(a => a.ai.setTrainSpeed(s));
 }
 
-// ─────────────────────────────────────────
-// MODE SWITCHING
-// ─────────────────────────────────────────
 function switchMode(m) {
   mode = m;
   document.getElementById('tabWatch').classList.toggle('active', m === 'watch');
   document.getElementById('tabPlay').classList.toggle('active',  m === 'play');
-  document.getElementById('watchControls').style.display   = m === 'watch' ? 'flex' : 'none';
-  document.getElementById('humanControls').style.display   = m === 'play'  ? 'block' : 'none';
-  document.getElementById('watchSpeedRow').style.display   = m === 'watch' ? 'flex' : 'none';
-  document.getElementById('trainSpeedRow').style.display   = m === 'watch' ? 'flex' : 'none';
-
-  if (m === 'play')  { startHumanGame(); }
-  else               { stopHumanGame(); }
+  document.getElementById('watchControls').style.display  = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('humanControls').style.display  = m === 'play'  ? 'block' : 'none';
+  document.getElementById('watchSpeedRow').style.display  = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('trainSpeedRow').style.display  = m === 'watch' ? 'flex'  : 'none';
+  if (m === 'play') startHumanGame(); else stopHumanGame();
 }
 
 function toggleSelected() {
@@ -285,31 +262,31 @@ function newWatchRun() {
   ai._watchAgent = new SnakeAIAgent(best.clone());
 }
 
-// ─────────────────────────────────────────
-// HUMAN GAME
-// ─────────────────────────────────────────
 function startHumanGame() {
   stopHumanGame();
   humanGame = new SnakeGame();
+  document.addEventListener('keydown', handleKey);
   humanTimer = setInterval(() => {
+    if (!humanGame || !humanGame.alive) return;
     humanGame.step();
-    if (!humanGame.alive) {
-      clearInterval(humanTimer); humanTimer = null;
-      showToast('Game over — score: ' + humanGame.score);
-    }
-  }, 130);
+    if (!humanGame.alive) showToast('Score: ' + humanGame.score);
+  }, 120);
 }
 
 function stopHumanGame() {
   if (humanTimer) { clearInterval(humanTimer); humanTimer = null; }
+  document.removeEventListener('keydown', handleKey);
   humanGame = null;
 }
 
-document.addEventListener('keydown', e => {
-  if (mode !== 'play' || !humanGame) return;
-  const map = { ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3, w:0, d:1, s:2, a:3 };
-  if (e.key in map) { e.preventDefault(); humanGame.setDir(map[e.key]); }
-});
+function handleKey(e) {
+  if (!humanGame) return;
+  const map = {
+    ArrowUp: 0, KeyW: 0, ArrowRight: 1, KeyD: 1,
+    ArrowDown: 2, KeyS: 2, ArrowLeft: 3, KeyA: 3,
+  };
+  if (map[e.code] !== undefined) { humanGame.setDir(map[e.code]); e.preventDefault(); }
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
