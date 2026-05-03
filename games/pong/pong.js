@@ -2,18 +2,19 @@
  * PONG — Synthwave Neon Edition
  * Co-evolution: two separate populations (left vs right)
  *
- * Architecture matches Snake/Connect4:
- *   - tick() called every RAF frame, runs trainSpeed generations
- *   - Watch game advances separately via stepWatchGame() on an interval
+ * Architecture:
+ *   tick()           — called every RAF frame, time-budgeted (12ms max)
+ *   stepWatchGame()  — called by setInterval at watchMs pace
+ *   autosave         — every 50 generations, posts best brains to Supabase
  */
 
-const PW = 600;
-const PH = 400;
-const PADDLE_W = 10;
-const PADDLE_H = 70;
-const BALL_SIZE = 8;
+const PW          = 600;
+const PH          = 400;
+const PADDLE_W    = 10;
+const PADDLE_H    = 70;
+const BALL_SIZE   = 8;
 const PADDLE_SPEED = 4;
-const MAX_SCORE = 5;
+const MAX_SCORE   = 5;
 
 // ─────────────────────────────────────
 // PongGame
@@ -94,10 +95,10 @@ class PongGame {
 
   _resetBall(dir) {
     this.ballX = PW / 2; this.ballY = PH / 2;
-    const angle = (Math.random() * Math.PI / 3) - Math.PI / 6;
-    this.ballVX = dir * 5 * Math.cos(angle);
-    this.ballVY = 5 * Math.sin(angle);
-    this.trail  = [];
+    const angle  = (Math.random() * Math.PI / 3) - Math.PI / 6;
+    this.ballVX  = dir * 5 * Math.cos(angle);
+    this.ballVY  = 5 * Math.sin(angle);
+    this.trail   = [];
   }
 
   getFitness(side) {
@@ -124,48 +125,46 @@ class PongAI {
 
 // ─────────────────────────────────────
 // PongTrainer
-// Matches the pattern of SnakeAIInstance / Connect4AIInstance:
-//   tick()           — called every RAF frame, runs trainSpeed gens
-//   stepWatchGame()  — called by a separate interval, advances the display game
 // ─────────────────────────────────────
 class PongTrainer {
-  constructor({ populationSize = 50, onGeneration } = {}) {
-    this.popSize      = populationSize;
-    this.onGeneration = onGeneration || (() => {});
-    this.generation   = 0;
-    this.bestLeft     = 0;
-    this.bestRight    = 0;
-    this.bestEver     = 0;
-    this.avgRallies   = 0;
-    this.running      = false;
-    this.trainSpeed   = 1;  // gens per RAF tick
+  constructor({ populationSize = 50, onGeneration, supabaseUrl, supabaseKey } = {}) {
+    this.popSize       = populationSize;
+    this.onGeneration  = onGeneration || (() => {});
+    this.generation    = 0;
+    this.bestLeft      = 0;
+    this.bestRight     = 0;
+    this.bestEver      = 0;
+    this.avgRallies    = 0;
+    this.running       = false;
+    this.trainSpeed    = 1;
+    this._supabaseUrl  = supabaseUrl || null;
+    this._supabaseKey  = supabaseKey || null;
 
     this.gaLeft  = new GeneticAlgorithm({ populationSize, eliteCount: 4, mutationRate: 0.12, mutationStrength: 0.25 });
     this.gaRight = new GeneticAlgorithm({ populationSize, eliteCount: 4, mutationRate: 0.12, mutationStrength: 0.25 });
     this.gaLeft.init(()  => new NeuralNetwork(6, [12, 8], 3));
     this.gaRight.init(() => new NeuralNetwork(6, [12, 8], 3));
 
-    // Watch game — separate from training, updated by stepWatchGame()
     this.watchGame   = new PongGame();
     this._watchLeft  = new PongAI(this.gaLeft.population[0].clone(),  'left');
     this._watchRight = new PongAI(this.gaRight.population[0].clone(), 'right');
-
-    // Win tracking
-    this._winsLeft  = 0;
-    this._winsRight = 0;
+    this._winsLeft   = 0;
+    this._winsRight  = 0;
   }
 
-  // Called every RAF frame — runs trainSpeed generations synchronously
+  // Called every RAF frame — time-budgeted
   tick() {
     if (!this.running) return;
+    const deadline = performance.now() + 12;
     for (let i = 0; i < this.trainSpeed; i++) {
+      if (performance.now() > deadline) break;
       this._runOneGeneration();
     }
   }
 
   _runOneGeneration() {
-    const fitL = new Array(this.popSize).fill(0);
-    const fitR = new Array(this.popSize).fill(0);
+    const fitL    = new Array(this.popSize).fill(0);
+    const fitR    = new Array(this.popSize).fill(0);
     const rallies = [];
 
     for (let i = 0; i < this.popSize; i++) {
@@ -196,11 +195,15 @@ class PongTrainer {
     this.gaRight.evolve();
     this.generation = this.gaLeft.generation;
 
-    // Refresh watch agents with best brains
     const bl = this.gaLeft.bestEver  || this.gaLeft.population[0];
     const br = this.gaRight.bestEver || this.gaRight.population[0];
     this._watchLeft  = new PongAI(bl.clone(), 'left');
     this._watchRight = new PongAI(br.clone(), 'right');
+
+    // Autosave every 50 generations
+    if (this.generation % 50 === 0 && this._supabaseUrl && this._supabaseKey) {
+      this._autosave(bl, br);
+    }
 
     this.onGeneration({
       generation:  this.generation,
@@ -211,7 +214,32 @@ class PongTrainer {
     });
   }
 
-  // Called by a timer on the page — steps the watch game one tick
+  _autosave(brainLeft, brainRight) {
+    const base = {
+      generation: this.generation,
+      best_score: this.bestEver,
+      avg_score:  parseFloat(this.avgRallies.toFixed(2)),
+      saved_at:   new Date().toISOString(),
+    };
+    const saves = [
+      { ...base, game: 'pong_left',  brain_json: JSON.stringify(brainLeft.toJSON()) },
+      { ...base, game: 'pong_right', brain_json: JSON.stringify(brainRight.toJSON()) },
+    ];
+    saves.forEach(payload => {
+      fetch(this._supabaseUrl + '/rest/v1/master_ai', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'apikey':         this._supabaseKey,
+          'Authorization': 'Bearer ' + this._supabaseKey,
+          'Prefer':        'resolution=merge-duplicates',
+        },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    });
+  }
+
+  // Steps the watch game — called by setInterval at human-readable pace
   stepWatchGame() {
     if (this.watchGame.over) {
       const w = this.watchGame.scoreL >= MAX_SCORE ? 'left'
@@ -231,13 +259,8 @@ class PongTrainer {
   pause()  { this.running = false; }
   toggle() { this.running = !this.running; }
 
-  getWinCounts() { return { left: this._winsLeft, right: this._winsRight }; }
-  getBestBrains() {
-    return {
-      left:  this.gaLeft.bestEver,
-      right: this.gaRight.bestEver,
-    };
-  }
+  getWinCounts()  { return { left: this._winsLeft, right: this._winsRight }; }
+  getBestBrains() { return { left: this.gaLeft.bestEver, right: this.gaRight.bestEver }; }
 }
 
 // ─────────────────────────────────────
@@ -260,7 +283,7 @@ class PongRenderer {
     this._drawGrid(ctx);
     this._drawScanlines(ctx);
 
-    // Center dashed line
+    // Center line
     ctx.setLineDash([8, 8]);
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 2;
@@ -295,7 +318,7 @@ class PongRenderer {
     ctx.shadowBlur = 0;
 
     // Paddles
-    this._drawPaddle(ctx, 22,              game.leftY,  '#ff2d78');
+    this._drawPaddle(ctx, 22,                 game.leftY,  '#ff2d78');
     this._drawPaddle(ctx, PW - 22 - PADDLE_W, game.rightY, '#00f5ff');
 
     // Rally counter
@@ -305,7 +328,7 @@ class PongRenderer {
     ctx.fillText('RALLY ' + game.rallies, PW / 2, PH - 8);
     ctx.textAlign = 'left';
 
-    // Game over overlay
+    // Game over
     if (game.over) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(0, PH / 2 - 32, PW, 64);
@@ -322,7 +345,7 @@ class PongRenderer {
 
   _drawPaddle(ctx, x, y, color) {
     ctx.shadowColor = color; ctx.shadowBlur = 18;
-    ctx.fillStyle = color;
+    ctx.fillStyle   = color;
     ctx.fillRect(x, y, PADDLE_W, PADDLE_H);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.fillRect(x, y, 2, PADDLE_H);
@@ -357,4 +380,4 @@ window.PongGame     = PongGame;
 window.PongAI       = PongAI;
 window.PongTrainer  = PongTrainer;
 window.PongRenderer = PongRenderer;
-window.PW = PW; window.PH = PH;
+window.PW = PW; window.PH = PH; window.MAX_SCORE = MAX_SCORE;
