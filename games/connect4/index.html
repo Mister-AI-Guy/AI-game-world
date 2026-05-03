@@ -23,7 +23,6 @@
 
 <div class="game-page">
 
-  <!-- LEFT: GAME -->
   <div class="game-area">
     <div class="game-title-bar">
       <h2>Connect 4</h2>
@@ -40,7 +39,6 @@
       <span><span class="chip chip-yellow"></span>Minimax (yellow)</span>
     </div>
 
-    <!-- Column drop buttons — human modes only -->
     <div id="colBtns" class="col-buttons" style="display:none">
       <button class="col-btn" onclick="humanDrop(0)">v</button>
       <button class="col-btn" onclick="humanDrop(1)">v</button>
@@ -55,18 +53,15 @@
       <canvas id="gameCanvas"></canvas>
     </div>
 
-    <!-- Watch mode controls -->
     <div id="watchControls" class="controls">
       <button class="btn btn-primary" id="btnPause" onclick="toggleMaster()">Pause</button>
       <button class="btn btn-ghost"   onclick="newWatchGame()">New game</button>
     </div>
 
-    <!-- Human mode controls -->
     <div id="playControls" class="controls" style="display:none">
       <button class="btn btn-primary" onclick="resetHumanGame()">New game</button>
     </div>
 
-    <!-- Watch game speed (how fast pieces move on screen) -->
     <div class="watch-speed-row" id="watchSpeedRow">
       <span class="label">Move speed</span>
       <input type="range" id="watchSpeed" min="100" max="1500" value="700" step="100"
@@ -74,19 +69,17 @@
       <span id="watchSpeedLabel" style="min-width:35px">0.7s</span>
     </div>
 
-    <!-- Training speed (how many generations per second) -->
     <div class="speed-control" id="trainSpeedRow">
       <span class="label">Training speed</span>
       <div class="speed-presets">
-        <button class="speed-btn active" id="spd1" onclick="setTrainSpeed(1,this)">1x</button>
-        <button class="speed-btn"        id="spd3" onclick="setTrainSpeed(3,this)">3x</button>
-        <button class="speed-btn"        id="spd8" onclick="setTrainSpeed(8,this)">8x</button>
+        <button class="speed-btn active" id="spd1"  onclick="setTrainSpeed(1,this)">1x</button>
+        <button class="speed-btn"        id="spd3"  onclick="setTrainSpeed(3,this)">3x</button>
+        <button class="speed-btn"        id="spd8"  onclick="setTrainSpeed(8,this)">8x</button>
         <button class="speed-btn"        id="spd20" onclick="setTrainSpeed(20,this)">20x</button>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: PANEL -->
   <div class="ai-panel">
 
     <div class="panel-card">
@@ -141,23 +134,20 @@
 <script src="../../shared/neat.js"></script>
 <script src="connect4.js"></script>
 <script>
-// ────────────────────────────────────
-// STATE
-// ────────────────────────────────────
-let renderer     = null;
-let masterAI     = null;
-let customAIs    = [];
-let selectedId   = 'master';
-let mode         = 'watch';
-let humanGame    = null;
-let hoverCol     = -1;
-let watchMs      = 700;   // ms between moves shown on screen
-let watchTimer   = null;
-let customCount  = 0;
+const SB_URL = 'https://niyowwhrzlgcipyuemka.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5peW93d2hyemxnY2lweXVlbWthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NDAzNzksImV4cCI6MjA5MzMxNjM3OX0.PzXVkLMbRX72fncxV9ZjSAaIVEVWZIkIh_53uv5Ietw';
 
-// ────────────────────────────────────
-// INIT
-// ────────────────────────────────────
+let renderer    = null;
+let masterAI    = null;
+let customAIs   = [];
+let selectedId  = 'master';
+let mode        = 'watch';
+let humanGame   = null;
+let hoverCol    = -1;
+let watchMs     = 700;
+let watchTimer  = null;
+let customCount = 0;
+
 window.addEventListener('load', () => {
   renderer = new Connect4Renderer(document.getElementById('gameCanvas'));
 
@@ -165,46 +155,33 @@ window.addEventListener('load', () => {
     name: 'Master AI',
     populationSize: 30,
     isMaster: true,
+    supabaseUrl: SB_URL,
+    supabaseKey: SB_KEY,
     onGeneration: (stats) => {
       if (selectedId === 'master') updateStats(stats, masterAI.ga.history);
     },
   });
   masterAI.start();
-
   startWatchTimer();
   rafLoop();
 });
 
-// ────────────────────────────────────
-// RAF LOOP
-// Runs training + redraws canvas at 60fps
-// ────────────────────────────────────
 function rafLoop() {
   requestAnimationFrame(rafLoop);
-
-  // Training ticks happen here — runs trainSpeed gens per frame
   if (mode === 'watch') {
     const ai = getSelectedAI();
-    if (ai) {
-      ai.tick(); // runs trainSpeed generations synchronously
-      renderer.draw(ai.watchGame, -1);
-    }
+    if (ai) { ai.tick(); renderer.draw(ai.watchGame, -1); }
   } else if (humanGame) {
     renderer.draw(humanGame, hoverCol);
   }
 }
 
-// ────────────────────────────────────
-// WATCH TIMER — advances the display game at human pace
-// Separate from RAF loop so training speed doesn't affect display speed
-// ────────────────────────────────────
 function startWatchTimer() {
   if (watchTimer) clearInterval(watchTimer);
   watchTimer = setInterval(() => {
     if (mode !== 'watch') return;
     const ai = getSelectedAI();
-    if (!ai) return;
-    ai.stepWatchGame();
+    if (ai) ai.stepWatchGame();
   }, watchMs);
 }
 
@@ -219,22 +196,13 @@ function newWatchGame() {
   if (ai) ai.refreshWatchGame();
 }
 
-// ────────────────────────────────────
-// TRAINING SPEED
-// ────────────────────────────────────
 function setTrainSpeed(s, btn) {
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const ai = getSelectedAI();
-  if (ai) ai.setTrainSpeed(s);
-  // Also apply to all AIs
   masterAI.setTrainSpeed(s);
   customAIs.forEach(a => a.ai.setTrainSpeed(s));
 }
 
-// ────────────────────────────────────
-// AGENT MANAGEMENT
-// ────────────────────────────────────
 function getSelectedAI() {
   if (selectedId === 'master') return masterAI;
   return customAIs.find(a => a.id === selectedId)?.ai || null;
@@ -253,9 +221,9 @@ function selectAgent(id) {
 
 function spawnNewAI() {
   customCount++;
-  const id = 'custom-' + customCount;
+  const id   = 'custom-' + customCount;
   const name = 'Agent ' + customCount;
-  const ai = new Connect4AIInstance({
+  const ai   = new Connect4AIInstance({
     name, populationSize: 20, isMaster: false,
     onGeneration: (stats) => { if (selectedId === id) updateStats(stats, ai.ga.history); },
   });
@@ -274,9 +242,6 @@ function spawnNewAI() {
   showToast(name + ' started training from scratch');
 }
 
-// ────────────────────────────────────
-// STATS + CHART
-// ────────────────────────────────────
 function updateStats({ generation, best, avg, bestEver }, history) {
   document.getElementById('statGen').textContent      = generation;
   document.getElementById('statBest').textContent     = best || '—';
@@ -288,8 +253,8 @@ function updateStats({ generation, best, avg, bestEver }, history) {
 
 function drawC4Chart(canvas, history) {
   const ctx = canvas.getContext('2d');
-  const W = canvas.width = canvas.offsetWidth || 280;
-  const H = canvas.height = 110;
+  const W   = canvas.width  = canvas.offsetWidth || 280;
+  const H   = canvas.height = 110;
   ctx.clearRect(0, 0, W, H);
   if (!history || history.length < 2) return;
   const maxVal = Math.max(...history.map(h => h.best), 1);
@@ -298,56 +263,30 @@ function drawC4Chart(canvas, history) {
     const y = H - (i / 3) * H;
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   }
-  const draw = (data, color, lw) => {
-    if (data.length < 2) return;
+  const draw = (data, color, lw, key) => {
     ctx.strokeStyle = color; ctx.lineWidth = lw;
     ctx.beginPath();
     data.forEach((h, i) => {
       const x = i * W / (data.length - 1);
-      const y = H - h.best * (H / maxVal);
+      const y = H - (h[key] / maxVal) * H;
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
     ctx.stroke();
   };
-  draw(history.map(h => ({ best: h.avg })), 'rgba(91,124,250,0.5)', 1.5);
-  draw(history, '#34d399', 2);
+  draw(history, 'rgba(240,80,104,0.35)', 1.5, 'avg');
+  draw(history, '#f05068', 2, 'best');
 }
 
 function addLog(gen, best, avg, bestEver) {
-  const log = document.getElementById('genLog');
-  if (!log) return;
-  const d = document.createElement('div');
-  d.className = best > 200 ? 'log-win' : best < 80 ? 'log-loss' : 'log-draw';
-  d.textContent = 'Gen ' + gen + '  best: ' + best + '  avg: ' + (typeof avg === 'number' ? avg.toFixed(0) : avg);
-  log.insertBefore(d, log.firstChild);
-  while (log.children.length > 80) log.removeChild(log.lastChild);
-}
-
-// ────────────────────────────────────
-// MODE SWITCHING
-// ────────────────────────────────────
-function switchMode(m) {
-  mode = m;
-  ['watch','play','two'].forEach(x => document.getElementById('tab'+x.charAt(0).toUpperCase()+x.slice(1)).classList.remove('active'));
-  document.getElementById('tab' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
-
-  document.getElementById('watchControls').style.display  = m === 'watch' ? 'flex' : 'none';
-  document.getElementById('playControls').style.display   = m !== 'watch' ? 'flex' : 'none';
-  document.getElementById('colBtns').style.display        = m !== 'watch' ? 'flex' : 'none';
-  document.getElementById('watchSpeedRow').style.display  = m === 'watch' ? 'flex' : 'none';
-  document.getElementById('trainSpeedRow').style.display  = m === 'watch' ? 'flex' : 'none';
-
-  const turnBar = document.getElementById('turnBar');
-  if (m === 'watch') {
-    humanGame = null;
-    turnBar.innerHTML = '<span><span class="chip chip-red"></span>Neural AI (red)</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>Minimax (yellow)</span>';
-  } else if (m === 'play') {
-    humanGame = new Connect4Game();
-    turnBar.innerHTML = '<span><span class="chip chip-red"></span>You (red)</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>AI (yellow)</span>';
-  } else {
-    humanGame = new Connect4Game();
-    turnBar.innerHTML = '<span id="p1lbl"><span class="chip chip-red"></span>Player 1</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>Player 2</span>';
-  }
+  const box = document.getElementById('genLog');
+  if (!box) return;
+  if (gen === 0) box.innerHTML = '';
+  const div  = document.createElement('div');
+  const cls  = best >= 200 ? 'log-win' : best < 80 ? 'log-loss' : '';
+  div.className = cls;
+  div.textContent = 'Gen ' + gen + '  best ' + best + '  avg ' + (avg || 0).toFixed(0);
+  box.insertBefore(div, box.firstChild);
+  while (box.children.length > 30) box.removeChild(box.lastChild);
 }
 
 function toggleMaster() {
@@ -355,56 +294,57 @@ function toggleMaster() {
   document.getElementById('btnPause').textContent = masterAI.running ? 'Pause' : 'Resume';
 }
 
-// ────────────────────────────────────
-// HUMAN GAME
-// ────────────────────────────────────
-function humanDrop(col) {
-  if (!humanGame || humanGame.over) return;
-  if (mode === 'play' && humanGame.current !== 1) return;
+function switchMode(m) {
+  mode = m;
+  ['watch','play','two'].forEach(id => {
+    document.getElementById('tab' + id.charAt(0).toUpperCase() + id.slice(1))?.classList.toggle('active', m === id);
+  });
+  document.getElementById('watchControls').style.display = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('playControls').style.display  = m !== 'watch' ? 'flex'  : 'none';
+  document.getElementById('colBtns').style.display       = m !== 'watch' ? 'flex'  : 'none';
+  document.getElementById('watchSpeedRow').style.display = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('trainSpeedRow').style.display = m === 'watch' ? 'flex'  : 'none';
 
-  humanGame.drop(col);
-
-  if (humanGame.over) {
-    const msg = humanGame.winner === 0 ? 'Draw!' : humanGame.winner === 1 ? 'You win!' : 'AI wins!';
-    showToast(msg); return;
-  }
-
-  if (mode === 'play' && humanGame.current === 2) {
-    setTimeout(() => {
-      const brain = masterAI.getBestBrain();
-      const aiCol = brain ? new Connect4NeuralAI(brain).getBestMove(humanGame)
-                          : new Connect4Minimax(2).getBestMove(humanGame);
-      humanGame.drop(aiCol);
-      if (humanGame.over) showToast(humanGame.winner === 1 ? 'You win!' : humanGame.winner === 2 ? 'AI wins!' : 'Draw!');
-    }, 300);
-  }
-
-  if (mode === 'two') {
-    const lbl = document.getElementById('p1lbl');
-    if (lbl) lbl.innerHTML = humanGame.current === 1
-      ? '<span class="chip chip-red"></span>Player 1'
-      : '<span class="chip chip-yellow"></span>Player 2';
+  const tb = document.getElementById('turnBar');
+  if (m === 'watch') {
+    tb.innerHTML = '<span><span class="chip chip-red"></span>Neural AI (red)</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>Minimax (yellow)</span>';
+  } else if (m === 'play') {
+    tb.innerHTML = '<span><span class="chip chip-red"></span>You (red)</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>Neural AI (yellow)</span>';
+    resetHumanGame();
+  } else {
+    tb.innerHTML = '<span><span class="chip chip-red"></span>Player 1</span><span style="color:var(--text-faint)">vs</span><span><span class="chip chip-yellow"></span>Player 2</span>';
+    resetHumanGame();
   }
 }
 
 function resetHumanGame() {
   humanGame = new Connect4Game();
-  if (mode === 'two') {
-    const lbl = document.getElementById('p1lbl');
-    if (lbl) lbl.innerHTML = '<span class="chip chip-red"></span>Player 1';
-  }
+  hoverCol  = -1;
+  const canvas = document.getElementById('gameCanvas');
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    hoverCol = Math.floor((e.clientX - rect.left) / C4_CELL);
+  };
+  canvas.onmouseleave = () => { hoverCol = -1; };
 }
 
-const cvs = document.getElementById('gameCanvas');
-cvs.addEventListener('mousemove', e => {
-  if (mode === 'watch') return;
-  hoverCol = Math.floor((e.clientX - cvs.getBoundingClientRect().left) / C4_CELL);
-});
-cvs.addEventListener('mouseleave', () => { hoverCol = -1; });
-cvs.addEventListener('click', e => {
-  if (mode === 'watch') return;
-  humanDrop(Math.floor((e.clientX - cvs.getBoundingClientRect().left) / C4_CELL));
-});
+function humanDrop(col) {
+  if (!humanGame || humanGame.over) return;
+  if (mode === 'play' && humanGame.current !== 1) return;
+  humanGame.drop(col);
+  if (humanGame.over) {
+    const msg = humanGame.winner === 1 ? 'You win!' : humanGame.winner === 2 ? 'AI wins!' : 'Draw!';
+    showToast(msg); return;
+  }
+  if (mode === 'play') {
+    const best = masterAI?.getBestBrain();
+    const ai   = best ? new Connect4NeuralAI(best) : new Connect4Minimax(2);
+    setTimeout(() => {
+      humanGame.drop(ai.getBestMove(humanGame));
+      if (humanGame.over) showToast(humanGame.winner === 2 ? 'AI wins!' : 'Draw!');
+    }, 150);
+  }
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
