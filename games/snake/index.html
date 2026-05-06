@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake — AI Game World</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body>
+
+<nav>
+  <a href="../../index.html" class="nav-logo" style="text-decoration:none">
+    <div class="nav-logo-mark">AI</div>
+    <span>AI Game World</span>
+  </a>
+  <div class="nav-links">
+    <a href="../../index.html">Home</a>
+    <a href="#" class="active">Snake</a>
+    <a href="../connect4/index.html">Connect 4</a>
+    <a href="../pong/index.html">Pong</a>
+  </div>
+</nav>
+
+<div class="game-page">
+
+  <!-- LEFT: GAME -->
+  <div class="game-area">
+    <div class="game-title-bar">
+      <h2>Snake</h2>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabWatch" onclick="switchMode('watch')">Watch AI</button>
+        <button class="mode-tab"        id="tabPlay"  onclick="switchMode('play')">Play yourself</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- Watch mode controls -->
+    <div id="watchControls" class="controls">
+      <button class="btn btn-primary" id="btnPause" onclick="toggleSelected()">Pause</button>
+      <button class="btn btn-ghost"   onclick="newWatchRun()">New run</button>
+    </div>
+
+    <!-- Human controls -->
+    <div id="humanControls" style="display:none">
+      <div class="controls">
+        <button class="btn btn-primary" onclick="startHumanGame()">Start</button>
+        <button class="btn btn-ghost"   onclick="stopHumanGame()">Stop</button>
+      </div>
+      <p class="key-hint"><kbd>Arrow keys</kbd> or <kbd>WASD</kbd> to move</p>
+    </div>
+
+    <div class="watch-speed-row" id="watchSpeedRow">
+      <span class="label">Watch speed</span>
+      <input type="range" id="watchSpeedSlider" min="40" max="500" value="100" step="10"
+             oninput="setWatchSpeed(this.value)" />
+      <span id="watchSpeedLabel" style="min-width:40px">100ms</span>
+    </div>
+
+    <div class="speed-control" id="trainSpeedRow">
+      <span class="label">Training speed</span>
+      <div class="speed-presets">
+        <button class="speed-btn active" id="spd1"   onclick="setTrainSpeed(1,this)">1x</button>
+        <button class="speed-btn"        id="spd10"  onclick="setTrainSpeed(10,this)">10x</button>
+        <button class="speed-btn"        id="spd50"  onclick="setTrainSpeed(50,this)">50x</button>
+        <button class="speed-btn"        id="spd200" onclick="setTrainSpeed(200,this)">200x</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PANEL -->
+  <div class="ai-panel">
+
+    <div class="panel-card">
+      <h3>Active AI</h3>
+      <div class="agent-tabs" id="agentTabs">
+        <button class="agent-tab active" id="tab-master" onclick="selectAgent('master')">
+          <span class="training-dot"></span>Master AI
+        </button>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;font-size:0.8rem;margin-top:0.5rem" onclick="spawnNewAI()">
+        + Train new AI from scratch
+      </button>
+    </div>
+
+    <div class="panel-card">
+      <h3>Training stats</h3>
+      <div class="stat-row">
+        <span class="stat-label">Generation</span>
+        <span class="stat-value accent" id="statGen">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Best this gen</span>
+        <span class="stat-value good" id="statBest">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Avg score</span>
+        <span class="stat-value" id="statAvg">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Best ever</span>
+        <span class="stat-value good" id="statBestEver">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Alive now</span>
+        <span class="stat-value" id="statAlive">—</span>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <h3>Training progress</h3>
+      <canvas id="chartCanvas" class="chart-canvas"></canvas>
+    </div>
+
+    <div class="panel-card">
+      <h3>Population</h3>
+      <div class="population-grid" id="popGrid"></div>
+      <div style="display:flex;gap:1rem;font-size:0.72rem;color:var(--text-faint);margin-top:0.5rem">
+        <span><span style="color:var(--accent3)">&#9632;</span> Alive</span>
+        <span><span style="color:var(--accent)">&#9632;</span> Best</span>
+        <span><span style="color:var(--bg3)">&#9632;</span> Dead</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/neat.js"></script>
+<script src="snake.js"></script>
+<script>
+const SB_URL = 'https://niyowwhrzlgcipyuemka.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5peW93d2hyemxnY2lweXVlbWthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NDAzNzksImV4cCI6MjA5MzMxNjM3OX0.PzXVkLMbRX72fncxV9ZjSAaIVEVWZIkIh_53uv5Ietw';
+
+let renderer    = null;
+let masterAI    = null;
+let customAIs   = [];
+let selectedId  = 'master';
+let mode        = 'watch';
+let humanGame   = null;
+let humanTimer  = null;
+let customCount = 0;
+
+window.addEventListener('load', () => {
+  renderer = new SnakeRenderer(document.getElementById('gameCanvas'));
+
+  masterAI = new SnakeAIInstance({
+    name: 'Master AI',
+    populationSize: 100,
+    isMaster: true,
+    supabaseUrl: SB_URL,
+    supabaseKey: SB_KEY,
+    onGeneration: (stats) => {
+      if (selectedId === 'master') updateStats(stats, masterAI.ga.history);
+    },
+  });
+  masterAI.start();
+  buildPopGrid('popGrid', 100);
+  rafLoop();
+});
+
+function rafLoop() {
+  requestAnimationFrame(rafLoop);
+  if (mode === 'watch') {
+    const ai = getSelectedAI();
+    if (ai) {
+      ai.tick();
+      renderer.draw(ai.getWatchGame());
+      updatePopGrid('popGrid', ai._agents);
+      document.getElementById('statAlive').textContent = ai.getAliveCount() + ' / ' + ai.popSize;
+    }
+  } else if (humanGame) {
+    renderer.draw(humanGame);
+  }
+}
+
+function getSelectedAI() {
+  if (selectedId === 'master') return masterAI;
+  return customAIs.find(a => a.id === selectedId)?.ai || null;
+}
+
+function selectAgent(id) {
+  selectedId = id;
+  document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id)?.classList.add('active');
+  const ai = getSelectedAI();
+  if (ai) {
+    buildPopGrid('popGrid', ai.popSize);
+    updateStats({ generation: ai.generation, best: ai.lastBest, avg: ai.lastAvg, bestEver: ai.bestEver }, ai.ga.history);
+  }
+}
+
+function spawnNewAI() {
+  customCount++;
+  const id   = 'custom-' + customCount;
+  const name = 'Agent ' + customCount;
+  const ai   = new SnakeAIInstance({
+    name, populationSize: 50, isMaster: false,
+    onGeneration: (stats) => { if (selectedId === id) updateStats(stats, ai.ga.history); },
+  });
+  ai.start();
+  customAIs.push({ id, ai });
+
+  const tabs = document.getElementById('agentTabs');
+  const btn  = document.createElement('button');
+  btn.className = 'agent-tab custom';
+  btn.id = 'tab-' + id;
+  btn.onclick = () => selectAgent(id);
+  btn.innerHTML = '<span class="training-dot blue"></span>' + name;
+  tabs.appendChild(btn);
+
+  selectAgent(id);
+  showToast(name + ' started — watch it learn from zero');
+}
+
+function updateStats({ generation, best, avg, bestEver }, history) {
+  document.getElementById('statGen').textContent      = generation;
+  document.getElementById('statBest').textContent     = best || '—';
+  document.getElementById('statAvg').textContent      = typeof avg === 'number' ? avg.toFixed(1) : '—';
+  document.getElementById('statBestEver').textContent = bestEver || '—';
+  drawChart(document.getElementById('chartCanvas'), history);
+}
+
+function setWatchSpeed(ms) {
+  document.getElementById('watchSpeedLabel').textContent = ms + 'ms';
+  const ai = getSelectedAI();
+  if (ai) ai.setWatchSpeed(parseInt(ms));
+}
+
+function setTrainSpeed(s, btn) {
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  masterAI.setTrainSpeed(s);
+  customAIs.forEach(a => a.ai.setTrainSpeed(s));
+}
+
+function switchMode(m) {
+  mode = m;
+  document.getElementById('tabWatch').classList.toggle('active', m === 'watch');
+  document.getElementById('tabPlay').classList.toggle('active',  m === 'play');
+  document.getElementById('watchControls').style.display  = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('humanControls').style.display  = m === 'play'  ? 'block' : 'none';
+  document.getElementById('watchSpeedRow').style.display  = m === 'watch' ? 'flex'  : 'none';
+  document.getElementById('trainSpeedRow').style.display  = m === 'watch' ? 'flex'  : 'none';
+  if (m === 'play') startHumanGame(); else stopHumanGame();
+}
+
+function toggleSelected() {
+  const ai = getSelectedAI();
+  if (!ai) return;
+  ai.toggle();
+  document.getElementById('btnPause').textContent = ai.running ? 'Pause' : 'Resume';
+}
+
+function newWatchRun() {
+  const ai = getSelectedAI();
+  if (!ai) return;
+  const best = ai.ga.bestEver || ai.ga.population[0];
+  ai._watchAgent = new SnakeAIAgent(best.clone());
+}
+
+function startHumanGame() {
+  stopHumanGame();
+  humanGame = new SnakeGame();
+  document.addEventListener('keydown', handleKey);
+  humanTimer = setInterval(() => {
+    if (!humanGame || !humanGame.alive) return;
+    humanGame.step();
+    if (!humanGame.alive) showToast('Score: ' + humanGame.score);
+  }, 120);
+}
+
+function stopHumanGame() {
+  if (humanTimer) { clearInterval(humanTimer); humanTimer = null; }
+  document.removeEventListener('keydown', handleKey);
+  humanGame = null;
+}
+
+function handleKey(e) {
+  if (!humanGame) return;
+  const map = {
+    ArrowUp: 0, KeyW: 0, ArrowRight: 1, KeyD: 1,
+    ArrowDown: 2, KeyS: 2, ArrowLeft: 3, KeyA: 3,
+  };
+  if (map[e.code] !== undefined) { humanGame.setDir(map[e.code]); e.preventDefault(); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
